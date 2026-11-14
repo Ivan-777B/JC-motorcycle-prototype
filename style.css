@@ -7024,129 +7024,6 @@ body.resp-scroll-locked {
    ACTIVE REPAIRS (ar-) & JOB CARD (jc-)
    ========================================================== */
 
-/* Active Repairs List */
-.ar-table-wrap {
-  display: block;
-}
-
-.ar-cards {
-  display: none;
-}
-
-.ar-col-plate {
-  min-width: 130px;
-}
-
-.ar-col-status {
-  white-space: nowrap;
-}
-
-.ar-col-mech {
-  min-width: 120px;
-}
-
-.ar-col-services {
-  max-width: 240px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.ar-col-total {
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.ar-col-action {
-  white-space: nowrap;
-}
-
-.ar-btn-jobcard {
-  min-height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-@media (pointer: coarse) {
-  .ar-btn-jobcard {
-    min-height: 44px;
-  }
-}
-
-.ar-card {
-  background: var(--bg-surface, #FFFFFF);
-  border: 1px solid #E2E8F0;
-  border-radius: 12px;
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
-}
-
-.ar-card-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-}
-
-.ar-card-row-top {
-  align-items: flex-start;
-}
-
-.ar-card-plate {
-  display: flex;
-  flex-direction: column;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.ar-card-sub {
-  font-size: 12px;
-  color: var(--text-muted);
-  font-weight: 400;
-}
-
-.ar-card-badge {
-  flex-shrink: 0;
-}
-
-.ar-card-row-meta {
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.ar-card-total {
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--text-primary);
-}
-
-.ar-card-services {
-  font-size: 13px;
-  color: var(--text-secondary);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.ar-card-btn {
-  width: 100%;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: 600;
-  margin-top: 4px;
-  border-radius: 8px;
-}
-
 /* Active Repairs: Responsive Square Card Grid */
 .rep-grid,
 #rep-results.rep-grid {
@@ -7575,22 +7452,10 @@ body.jc-scroll-locked {
     background: #F8FAFC;
     color: #1E293B;
   }
-  .ar-card:hover {
-    border-color: #CBD5E1;
-  }
 }
 
 /* Responsive Narrow Breakpoint & Mobile UI Frame */
 @media (max-width: 899.98px) {
-  .ar-table-wrap {
-    display: none !important;
-  }
-  .ar-cards {
-    display: flex !important;
-    flex-direction: column;
-    gap: 12px;
-    padding-bottom: 24px;
-  }
   .jc-modal {
     width: 100vw !important;
     height: 100vh !important;
@@ -7615,23 +7480,6 @@ body.jc-scroll-locked {
     width: 100% !important;
     justify-content: center !important;
   }
-}
-
-.mobile-ui .ar-table-wrap,
-[data-mobile] .ar-table-wrap,
-body.is-mobile .ar-table-wrap,
-.phone-frame .ar-table-wrap {
-  display: none !important;
-}
-
-.mobile-ui .ar-cards,
-[data-mobile] .ar-cards,
-body.is-mobile .ar-cards,
-.phone-frame .ar-cards {
-  display: flex !important;
-  flex-direction: column;
-  gap: 12px;
-  padding-bottom: 24px;
 }
 
 .mobile-ui .jc-modal,

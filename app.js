@@ -182,6 +182,148 @@ function seed() {
   return initDatabase();
 }
 
+// DEMO ONLY. These two cancelled jobs are restored to Cancelled on every page load. Remove this constant and its init call before real use.
+const DEMO_CANCELLED_JOBS = (() => {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const todayDateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const yDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 15, 40);
+  const yesterdayCancelAt = `${yDate.getFullYear()}-${pad(yDate.getMonth() + 1)}-${pad(yDate.getDate())} 15:40`;
+  const todayCancelAt = `${todayDateStr} 10:20`;
+
+  return [
+    {
+      id: "demo-wo-1",
+      bid: "b13",
+      mech: "",
+      st: "Cancelled",
+      sv: [],
+      at: todayDateStr,
+      note: "Customer reported brake issues.",
+      notes: "Customer reported brake issues.",
+      findings: "Front brake pads worn out.",
+      complaints: ["Brake overhaul"],
+      inspection: { enablePhysical: true, items: {}, obd: { codes: [] } },
+      approved: false,
+      items: [
+        { name: "Brake overhaul", kind: "labor", qty: 1, price: 500, src: "shop" },
+        { name: "Front brake pads", kind: "part", qty: 1, price: 650, src: "shop" }
+      ],
+      extra: [],
+      advances: [],
+      remarks: "",
+      cancel: {
+        reason: "Customer backed out after the estimate.",
+        at: yesterdayCancelAt,
+        by: "Admin",
+        prevStatus: "Awaiting Parts/Approval"
+      }
+    },
+    {
+      id: "demo-wo-2",
+      bid: "b14",
+      mech: "Larpus",
+      st: "Cancelled",
+      sv: [],
+      at: todayDateStr,
+      note: "Scheduled periodic oil change.",
+      notes: "Scheduled periodic oil change.",
+      findings: "Engine oil degraded.",
+      complaints: ["Change oil"],
+      inspection: { enablePhysical: true, items: {}, obd: { codes: [] } },
+      approved: false,
+      items: [
+        { name: "Change oil", kind: "labor", qty: 1, price: 150, src: "shop" },
+        { name: "Engine oil 10W-40 (1L)", kind: "part", qty: 1, price: 420, src: "shop" }
+      ],
+      extra: [],
+      advances: [],
+      remarks: "",
+      cancel: {
+        reason: "",
+        at: todayCancelAt,
+        by: "Super Admin",
+        prevStatus: "In Progress"
+      }
+    }
+  ];
+})();
+
+/**
+ * Resets the two fixed demo cancelled jobs to Cancelled on every page load.
+ * Called once during initialization after "moto1" is loaded & migrated and before first render.
+ */
+function resetDemoCancelledJobs() {
+  if (!Array.isArray(D.wo)) D.wo = [];
+  if (!Array.isArray(D.bk)) D.bk = [];
+  if (!Array.isArray(D.cu)) D.cu = [];
+
+  DEMO_CANCELLED_JOBS.forEach((demoDef, idx) => {
+    // 1. Resolve motorcycle: use existing motorcycle without open jobs, or fallback to demo bike
+    let targetBid = demoDef.bid;
+    const hasOpenJob = (bikeId) => D.wo.some((w) => w.bid === bikeId && w.st !== "Completed" && w.st !== "Cancelled" && !w.cancel && w.id !== "demo-wo-1" && w.id !== "demo-wo-2");
+
+    let b = D.bk.find((x) => x.id === targetBid);
+    if (!b || hasOpenJob(b.id)) {
+      const altBike = D.bk.find((bk) => !hasOpenJob(bk.id));
+      if (altBike) {
+        targetBid = altBike.id;
+      } else {
+        const fallbackCustId = idx === 0 ? "demo-cu-1" : "demo-cu-2";
+        const fallbackBikeId = idx === 0 ? "demo-bk-1" : "demo-bk-2";
+        if (!D.cu.some((c) => c.id === fallbackCustId)) {
+          D.cu.push({
+            id: fallbackCustId,
+            name: idx === 0 ? "Noel Pascual" : "Patricia Cruz",
+            phone: idx === 0 ? "0918 555 1172" : "0929 555 1256"
+          });
+        }
+        if (!D.bk.some((bk) => bk.id === fallbackBikeId)) {
+          D.bk.push({
+            id: fallbackBikeId,
+            cid: fallbackCustId,
+            make: idx === 0 ? "Honda" : "Suzuki",
+            model: idx === 0 ? "Beat" : "Smash 115",
+            year: idx === 0 ? 2021 : 2020,
+            plate: idx === 0 ? "HIJ-2289" : "KLM-5534"
+          });
+        }
+        targetBid = fallbackBikeId;
+      }
+    }
+
+    // 2. Insert or reset demo job to Cancelled state
+    const existingIdx = D.wo.findIndex((x) => x.id === demoDef.id);
+    if (existingIdx === -1) {
+      const newJob = JSON.parse(JSON.stringify(demoDef));
+      newJob.bid = targetBid;
+      D.wo.push(newJob);
+    } else {
+      const existing = D.wo[existingIdx];
+      existing.bid = targetBid;
+      existing.st = "Cancelled";
+      existing.cancel = JSON.parse(JSON.stringify(demoDef.cancel));
+      existing.items = JSON.parse(JSON.stringify(demoDef.items));
+      existing.mech = demoDef.mech || "";
+      existing.sv = JSON.parse(JSON.stringify(demoDef.sv || []));
+      existing.note = demoDef.note || "";
+      existing.notes = demoDef.notes || "";
+      existing.findings = demoDef.findings || "";
+      existing.complaints = JSON.parse(JSON.stringify(demoDef.complaints || []));
+      existing.inspection = JSON.parse(JSON.stringify(demoDef.inspection));
+      existing.at = demoDef.at;
+      existing.approved = false;
+      delete existing.restored;
+      delete existing.cancelHistory;
+      delete existing.pay;
+      delete existing.done;
+      delete existing.reversed;
+    }
+  });
+
+  save();
+}
+
 
 /* ==========================================================
    3. STORAGE (load / save)
@@ -2294,109 +2436,7 @@ function getJobServicesList(o) {
   return [];
 }
 
-/**
- * Formats services list: first 2 service names separated by commas, then "+N more" if more.
- * @param {Object} o - Work order object.
- * @returns {{ display: string, title: string }}
- */
-function formatJobServicesSummary(o) {
-  const list = getJobServicesList(o);
-  if (!list.length) {
-    return { display: "-", title: "" };
-  }
-  const title = list.join(", ");
-  if (list.length <= 2) {
-    return { display: list.join(", "), title };
-  }
-  const rem = list.length - 2;
-  return { display: `${list.slice(0, 2).join(", ")}, +${rem} more`, title };
-}
 
-/**
- * Renders an HTML table and responsive mobile cards for work orders.
- * Shows ONLY: PLATE NO., STATUS, MECHANIC, SERVICES, TOTAL, and Job card button.
- * @param {Array<Object>} L - Array of work order objects.
- * @param {boolean} [full] - Unused legacy flag kept for signature compatibility.
- * @returns {string} HTML string of table and mobile cards.
- */
-function tbl(L, full) {
-  if (!L.length) {
-    return `<div class="empty">No active jobs. Create a work order to get started.</div>`;
-  }
-
-  // Desktop Table Rows
-  const tableRows = L.map((o) => {
-    const b = bike(o.bid);
-    const svc = formatJobServicesSummary(o);
-    const tot = jobTotalOf(o);
-
-    return `<tr>
-      <td class="ar-col-plate">
-        <b>${b ? escHtml(b.plate) : "NO PLATE"}</b>
-        ${b ? `<br><small style="color:var(--mu)">${escHtml(b.make + " " + b.model)}</small>` : ""}
-      </td>
-      <td class="ar-col-status">${badge(o.st)}</td>
-      <td class="ar-col-mech">${escHtml((o.mech && o.mech !== "Unassigned") ? o.mech : "-")}</td>
-      <td class="ar-col-services" title="${escHtml(svc.title)}">${escHtml(svc.display)}</td>
-      <td class="r ar-col-total" id="ar-row-total-${o.id}">${P(tot)}</td>
-      <td class="r ar-col-action">
-        <button type="button" class="btn g sm ar-btn-jobcard" onclick="openInspModal('${o.id}')">Job card</button>
-      </td>
-    </tr>`;
-  }).join("");
-
-  // Mobile / Narrow Cards
-  const cards = L.map((o) => {
-    const b = bike(o.bid);
-    const svc = formatJobServicesSummary(o);
-    const tot = jobTotalOf(o);
-
-    return `
-      <div class="ar-card">
-        <div class="ar-card-row ar-card-row-top">
-          <div class="ar-card-plate">
-            <b>${b ? escHtml(b.plate) : "NO PLATE"}</b>
-            ${b ? `<small class="ar-card-sub">${escHtml(b.make + " " + b.model)}</small>` : ""}
-          </div>
-          <div class="ar-card-badge">${badge(o.st)}</div>
-        </div>
-        <div class="ar-card-row ar-card-row-meta">
-          <span class="ar-card-mech">${escHtml((o.mech && o.mech !== "Unassigned") ? o.mech : "-")}</span>
-          <b class="ar-card-total" id="ar-card-total-${o.id}">${P(tot)}</b>
-        </div>
-        <div class="ar-card-row ar-card-services" title="${escHtml(svc.title)}">
-          ${escHtml(svc.display)}
-        </div>
-        <button type="button" class="btn g ar-card-btn" onclick="openInspModal('${o.id}')">
-          Job card
-        </button>
-      </div>
-    `;
-  }).join("");
-
-  return `
-    <div class="tw ar-table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>PLATE NO.</th>
-            <th>STATUS</th>
-            <th>MARKED BY</th>
-            <th>SERVICES</th>
-            <th class="r">TOTAL</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          ${tableRows}
-        </tbody>
-      </table>
-    </div>
-    <div class="ar-cards" id="ar-cards">
-      ${cards}
-    </div>
-  `;
-}
 
 /**
  * Short for "Modal". Opens the modal overlay and injects HTML into the dialog body.
@@ -3736,7 +3776,7 @@ function renderCustTableHtml() {
  */
 const R = {
   /**
-   * Dashboard view: shows KPI summary cards and priority repair queue.
+   * Dashboard view: shows KPI summary cards and Active Repairs quick-access card.
    * @returns {string} HTML string.
    */
   dash() {
@@ -3765,9 +3805,28 @@ const R = {
 
     const roleLabel = u ? (ROLES[u.activeRole]?.label || u.activeRole) : "Admin";
 
-    return `<div class="card top"><div><h1>Welcome back</h1><p>${roleLabel} | ${d}</p></div><span class="pill">● Saved on this device</span></div>
- <div class="stats">${stat(LINE_ICONS.rep, "", "ACTIVE REPAIRS", act.length, "In progress")}${stat(ICONS.money, "", "PENDING PAYMENTS", rdy.length, "Ready for pickup")}${stat(ICONS.checkCircle, "", "TODAY’S SERVICES", dn.length, "Jobs finished")}</div>
- <div class="card"><div class="hd" style="display:flex;align-items:center;gap:8px"><span>${LINE_ICONS.rep}</span><span>Priority Repair Queue</span><button class="btn g sm" onclick="go('rep')" style="margin-left:auto">View all</button></div>${tbl(countableWos.filter((o) => o.st != "Completed"))}</div>`;
+    return `
+      <div class="card top"><div><h1>Welcome back</h1><p>${roleLabel} | ${d}</p></div><span class="pill">● Saved on this device</span></div>
+      <div class="stats">${stat(LINE_ICONS.rep, "", "ACTIVE REPAIRS", act.length, "In progress")}${stat(ICONS.money, "", "PENDING PAYMENTS", rdy.length, "Ready for pickup")}${stat(ICONS.checkCircle, "", "TODAY’S SERVICES", dn.length, "Jobs finished")}</div>
+      ${canOpen("rep") ? `
+        <div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:20px 24px">
+          <div style="display:flex;align-items:center;gap:14px;min-width:0">
+            <div class="ic" style="width:48px;height:48px;border-radius:50%;background:var(--accent-soft);display:grid;place-items:center;color:var(--accent);font-size:20px;flex-shrink:0">
+              ${LINE_ICONS.rep}
+            </div>
+            <div style="min-width:0">
+              <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:2px">Active Repairs</div>
+              <div style="font-size:13px;color:var(--text-muted)">See and update all jobs in the shop.</div>
+            </div>
+          </div>
+          <div>
+            <button type="button" class="btn" style="min-height:44px;padding:0 24px;font-weight:700" onclick="go('rep')">
+              Go to Active Repairs →
+            </button>
+          </div>
+        </div>
+      ` : ""}
+    `;
   },
 
   /**
@@ -18234,30 +18293,15 @@ function updateQuickLaborCartFee(key, newFee) {
 }
 
 /**
- * Toggles work finished state and synchronizes both checkboxes.
+ * Toggles work finished state from the summary panel checkbox.
  * @param {boolean} checked - Checked state.
  */
 function setQuickLaborWorkFinished(checked) {
   qlWorkFinished = Boolean(checked);
-  const c1 = $("ql-work-finished-step");
-  if (c1) c1.checked = qlWorkFinished;
   const c2 = $("ql-work-finished-panel");
   if (c2) c2.checked = qlWorkFinished;
 
-  renderQuickLaborStep4Badge();
   syncQuickLaborSummaryDom();
-}
-
-/**
- * Updates Step 4 badge done/active status.
- */
-function renderQuickLaborStep4Badge() {
-  const badge = $("ql-step-4-badge");
-  const stepNum = qlJobType === "laborparts" ? "3" : "2";
-  if (badge) {
-    badge.className = `ql-step-badge ${qlWorkFinished ? "done" : "active"}`;
-    badge.textContent = qlWorkFinished ? "✓" : stepNum;
-  }
 }
 
 /**
@@ -18635,31 +18679,6 @@ function getQuickLaborLeftColHtml() {
         : ""
     }
 
-    <!-- STEP 3/4: Confirm work is finished -->
-    <div class="ql-step-card" id="ql-step-4">
-      <div class="ql-step-header">
-        <div class="ql-step-badge ${qlWorkFinished ? 'done' : 'active'}" id="ql-step-4-badge">
-          ${qlWorkFinished ? '✓' : (isLaborParts ? '3' : '2')}
-        </div>
-        <div>
-          <div class="ql-step-title">Confirm work is finished</div>
-          <div class="ql-step-subtitle">Must be checked before logging fix</div>
-        </div>
-      </div>
-      <div>
-        <label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;font-weight:700;color:var(--text-primary);padding:6px 0;user-select:none">
-          <input
-            type="checkbox"
-            id="ql-work-finished-step"
-            style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer"
-            ${qlWorkFinished ? "checked" : ""}
-            onchange="setQuickLaborWorkFinished(this.checked)"
-          />
-          <span>Work is finished</span>
-        </label>
-      </div>
-    </div>
-
     <div class="ql-steps-footer-note">
       ${isLaborParts
         ? "Steps 1 and 2 can be done in any order, but the job is recorded only after the work is done."
@@ -19000,6 +19019,9 @@ function initAuth() {
   // Read users & session
   const users = loadUsers();
   const session = getSession();
+
+  // Reset demo cancelled jobs after data load & migration and before first render
+  resetDemoCancelledJobs();
 
   let validUser = null;
   if (session && session.userId) {
