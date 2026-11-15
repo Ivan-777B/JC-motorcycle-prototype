@@ -3809,21 +3809,19 @@ const R = {
       <div class="card top"><div><h1>Welcome back</h1><p>${roleLabel} | ${d}</p></div><span class="pill">● Saved on this device</span></div>
       <div class="stats">${stat(LINE_ICONS.rep, "", "ACTIVE REPAIRS", act.length, "In progress")}${stat(ICONS.money, "", "PENDING PAYMENTS", rdy.length, "Ready for pickup")}${stat(ICONS.checkCircle, "", "TODAY’S SERVICES", dn.length, "Jobs finished")}</div>
       ${canOpen("rep") ? `
-        <div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:20px 24px">
-          <div style="display:flex;align-items:center;gap:14px;min-width:0">
-            <div class="ic" style="width:48px;height:48px;border-radius:50%;background:var(--accent-soft);display:grid;place-items:center;color:var(--accent);font-size:20px;flex-shrink:0">
+        <div class="dash-tiles-row">
+          <button
+            type="button"
+            class="dash-tile-btn"
+            onclick="go('rep')"
+            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('rep');}"
+            aria-label="Go to Active Repairs"
+          >
+            <div class="dash-tile-icon">
               ${LINE_ICONS.rep}
             </div>
-            <div style="min-width:0">
-              <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:2px">Active Repairs</div>
-              <div style="font-size:13px;color:var(--text-muted)">See and update all jobs in the shop.</div>
-            </div>
-          </div>
-          <div>
-            <button type="button" class="btn" style="min-height:44px;padding:0 24px;font-weight:700" onclick="go('rep')">
-              Go to Active Repairs →
-            </button>
-          </div>
+            <div class="dash-tile-label">Active Repairs</div>
+          </button>
         </div>
       ` : ""}
     `;
