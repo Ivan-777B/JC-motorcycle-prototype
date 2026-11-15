@@ -1,4 +1,6 @@
 :root {
+  --app-header-h:   64px;
+
   /* Design tokens (Single clean light theme with one blue accent) */
   --bg-page:        #F8FAFC;
   --bg-surface:     #FFFFFF;
@@ -152,7 +154,7 @@
 }
 
 html {
-  scroll-padding-top: env(safe-area-inset-top, 0px);
+  scroll-padding-top: calc(var(--app-header-h) + env(safe-area-inset-top, 0px) + 12px);
 }
 
 body {
@@ -160,26 +162,186 @@ body {
   background: var(--bg-page);
   color: var(--text-primary);
   font: 14px/1.45 Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
-  display: flex;
+  display: block;
   min-height: 100vh;
 }
 
-/* SIDEBAR (Clean Light) */
+/* TOP GOOGLE DOCS-STYLE APP HEADER (Desktop UI at ALL widths) */
+.app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  height: calc(var(--app-header-h) + env(safe-area-inset-top, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: max(12px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  box-sizing: border-box;
+}
+
+.app-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.app-menu-btn {
+  all: unset;
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  cursor: pointer;
+  flex: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.app-menu-btn:hover {
+  background: var(--bg-subtle);
+}
+
+.app-menu-btn:active {
+  background: var(--border);
+}
+
+.app-menu-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.app-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.app-header-logo {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  object-fit: contain;
+  border-radius: 8px;
+  flex: none;
+}
+
+.app-header-logo-fallback {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  display: grid;
+  place-items: center;
+  font-style: normal;
+  color: var(--accent);
+  flex: none;
+}
+
+.app-header-title {
+  font-weight: 800;
+  font-size: 18px;
+  line-height: 1.2;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Dim translucent scrim behind overlay drawer */
+.app-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(2px);
+  z-index: 240;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 200ms ease, visibility 200ms ease;
+  touch-action: none;
+}
+
+body.app-drawer-open .app-scrim,
+body.drawer-open .app-scrim {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* Scroll lock while drawer is open */
+html.resp-scroll-locked,
+body.resp-scroll-locked,
+body.app-drawer-open {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
+/* SIDEBAR OVERLAY DRAWER (Clean Light, Hidden by Default at All Widths) */
 aside {
-  width: 250px;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(85vw, 280px);
   background: var(--bg-surface);
   color: var(--text-muted);
-  flex: none;
   display: flex;
   flex-direction: column;
-  position: sticky;
-  top: 0;
   height: 100vh;
+  height: 100dvh;
+  z-index: 250;
   border-right: 1px solid var(--border);
   box-sizing: border-box;
-  transition: width 200ms ease;
+  transform: translateX(-100%);
+  visibility: hidden;
+  pointer-events: none;
+  box-shadow: none;
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1), visibility 200ms ease, box-shadow 200ms ease;
   overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  margin: 0;
+}
+
+body.app-drawer-open aside,
+body.drawer-open aside {
+  transform: translateX(0);
+  visibility: visible;
+  pointer-events: auto;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.16), 4px 0 24px rgba(15, 23, 42, 0.12);
+}
+
+/* Do not render Desktop UI header/scrim inside dedicated Mobile UI frames */
+.mobile-ui .app-header,
+[data-mobile] .app-header,
+body.is-mobile .app-header,
+.phone-frame .app-header,
+.mobile-ui .app-scrim,
+[data-mobile] .app-scrim,
+body.is-mobile .app-scrim,
+.phone-frame .app-scrim {
+  display: none !important;
 }
 
 .logo-row {
@@ -234,15 +396,15 @@ aside {
   flex: none;
 }
 
-/* Sidebar toggle button (desktop collapse & mobile close) */
+/* Sidebar drawer close button (44px min touch target) */
 .btn-sidebar-toggle {
   all: unset;
   cursor: pointer;
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
-  min-height: 36px;
-  border-radius: 8px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 9999px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -263,145 +425,20 @@ aside {
   outline-offset: 2px;
 }
 
-/* Mobile top bar hamburger button (<900px) */
+/* Legacy mobile menu button & backdrop: hidden in Desktop UI, preserved only for Mobile UI frames */
 .btn-mobile-menu {
   display: none;
 }
 
-/* Mobile translucent backdrop */
 .sidebar-backdrop {
   display: none;
 }
 
-/* Desktop Collapsed Sidebar Rail (>= 900px) */
-@media (min-width: 900px) {
-  body.sidebar--collapsed aside {
-    width: 72px;
-    min-width: 72px;
-    max-width: 72px;
-  }
-
-  body.sidebar--collapsed aside .logo-row {
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 14px 0 12px;
-    gap: 8px;
-  }
-
-  body.sidebar--collapsed aside .logo {
-    justify-content: center;
-  }
-
-  body.sidebar--collapsed aside .logo-text {
-    display: none !important;
-  }
-
-  body.sidebar--collapsed aside .btn-sidebar-toggle {
-    margin: 0 auto;
-  }
-
-  body.sidebar--collapsed aside .nl {
-    font-size: 0;
-    color: transparent;
-    height: 1px;
-    min-height: 1px;
-    padding: 0;
-    margin: 14px 12px;
-    background: var(--border);
-    border: none;
-    overflow: hidden;
-    user-select: none;
-  }
-
-  body.sidebar--collapsed aside nav {
-    padding: 0 12px;
-    align-items: center;
-    gap: 6px;
-  }
-
-  body.sidebar--collapsed aside nav button {
-    width: 48px;
-    height: 48px;
-    min-width: 48px;
-    min-height: 48px;
-    padding: 0;
-    margin: 0 auto;
-    justify-content: center;
-    border-radius: 14px;
-    box-sizing: border-box;
-    gap: 0;
-  }
-
-  body.sidebar--collapsed aside nav button .nav-text {
-    display: none !important;
-  }
-
-  body.sidebar--collapsed aside nav button span:first-child {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    flex: none;
-  }
-
-  body.sidebar--collapsed aside .sidebar-account-switcher {
-    padding: 8px 12px;
-    display: flex;
-    justify-content: center;
-  }
-
-  body.sidebar--collapsed aside .btn-switch-account {
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
-    min-height: 44px;
-    padding: 0;
-    margin: 0 auto;
-    justify-content: center;
-    border-radius: 8px;
-  }
-
-  body.sidebar--collapsed aside .btn-switch-account-label,
-  body.sidebar--collapsed aside .btn-switch-account-chevron {
-    display: none !important;
-  }
-
-  body.sidebar--collapsed aside .btn-switch-account-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  body.sidebar--collapsed aside .me {
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 12px 0;
-    gap: 8px;
-  }
-
-  body.sidebar--collapsed aside .me-info {
-    display: none !important;
-  }
-
-  body.sidebar--collapsed aside .av {
-    margin: 0 auto;
-  }
-
-  body.sidebar--collapsed aside .btn-logout {
-    margin: 0 auto;
-    width: 36px;
-    height: 36px;
-    min-width: 36px;
-    min-height: 36px;
-  }
-}
-
-/* Mobile & Tablet Slide-in Drawer (< 900px) */
 @media (max-width: 899.98px) {
-  .btn-mobile-menu {
+  .mobile-ui .btn-mobile-menu,
+  [data-mobile] .btn-mobile-menu,
+  body.is-mobile .btn-mobile-menu,
+  .phone-frame .btn-mobile-menu {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -422,27 +459,29 @@ aside {
     transition: background-color 0.15s ease, color 0.15s ease;
   }
 
-  .btn-mobile-menu:hover {
+  .mobile-ui .btn-mobile-menu:hover,
+  [data-mobile] .btn-mobile-menu:hover,
+  body.is-mobile .btn-mobile-menu:hover,
+  .phone-frame .btn-mobile-menu:hover {
     background: var(--bg-subtle);
   }
 
-  .btn-mobile-menu:focus-visible {
+  .mobile-ui .btn-mobile-menu:focus-visible,
+  [data-mobile] .btn-mobile-menu:focus-visible,
+  body.is-mobile .btn-mobile-menu:focus-visible,
+  .phone-frame .btn-mobile-menu:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
-  }
-
-  body.logged-in main {
-    padding: 68px 16px 24px;
-    min-width: 0;
-    width: 100%;
-    box-sizing: border-box;
   }
 
   body.logged-out .btn-mobile-menu {
     display: none !important;
   }
 
-  .sidebar-backdrop {
+  .mobile-ui .sidebar-backdrop,
+  [data-mobile] .sidebar-backdrop,
+  body.is-mobile .sidebar-backdrop,
+  .phone-frame .sidebar-backdrop {
     display: none;
     position: fixed;
     inset: 0;
@@ -454,38 +493,21 @@ aside {
     backdrop-filter: blur(2px);
   }
 
-  body.drawer-open .sidebar-backdrop {
+  .mobile-ui.drawer-open .sidebar-backdrop,
+  [data-mobile].drawer-open .sidebar-backdrop,
+  body.is-mobile.drawer-open .sidebar-backdrop,
+  .phone-frame.drawer-open .sidebar-backdrop {
     display: block;
     opacity: 1;
     pointer-events: auto;
-  }
-
-  aside {
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: min(85vw, 300px);
-    height: 100vh;
-    height: 100dvh;
-    z-index: 250;
-    transform: translateX(-100%);
-    transition: transform 200ms ease;
-    visibility: hidden;
-    box-shadow: none;
-    overflow-y: auto;
-    margin: 0;
-  }
-
-  body.drawer-open aside {
-    transform: translateX(0);
-    visibility: visible;
-    box-shadow: 4px 0 24px rgba(15, 23, 42, 0.18);
   }
 }
 
 /* Reduced Motion Preference */
 @media (prefers-reduced-motion: reduce) {
+  .app-header,
+  .app-menu-btn,
+  .app-scrim,
   aside,
   .sidebar-backdrop,
   .btn-sidebar-toggle,
@@ -831,8 +853,10 @@ aside select,
 
 /* MAIN CONTENT AREA */
 main {
-  flex: 1;
-  padding: 28px 30px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: calc(var(--app-header-h) + 24px) max(28px, env(safe-area-inset-right, 0px)) max(28px, env(safe-area-inset-bottom, 0px)) max(28px, env(safe-area-inset-left, 0px));
   min-width: 0;
   background: var(--bg-page);
   color: var(--text-primary);
@@ -2084,6 +2108,8 @@ input[type="radio"] {
 }
 
 /* Authentication / Shell Visibility */
+body.logged-out .app-header,
+body.logged-out .app-scrim,
 body.logged-out aside,
 body.logged-out main,
 body.logged-out .ov,
@@ -6252,7 +6278,7 @@ body.logged-in .login-screen {
 /* Sticky Right Column / Cart Panel */
 .pos-right-col {
   position: sticky;
-  top: 16px;
+  top: calc(var(--app-header-h) + 16px);
   min-width: 0;
 }
 
@@ -6986,11 +7012,8 @@ body.is-mobile #pos-switcher .pos-tab .pos-tab-label-short,
 
 /* Top Card Margins & Padding inside main at <= 899.98px */
 @media (max-width: 899.98px) {
-  body.logged-in main {
-    padding-top: 68px !important;
-    padding-left: 16px;
-    padding-right: 16px;
-    padding-bottom: 24px;
+  main {
+    padding: calc(var(--app-header-h) + 16px) max(16px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
@@ -7066,11 +7089,14 @@ body.resp-scroll-locked {
   overflow: hidden !important;
 }
 
-/* Padding polish at <= 640px */
+/* Phone / Compact PWA Polish at <= 640px */
 @media (max-width: 640px) {
-  body.logged-in main {
-    padding-left: 14px;
-    padding-right: 14px;
+  :root {
+    --app-header-h: 56px;
+  }
+  main {
+    padding-left: max(14px, env(safe-area-inset-left, 0px));
+    padding-right: max(14px, env(safe-area-inset-right, 0px));
   }
 }
 
