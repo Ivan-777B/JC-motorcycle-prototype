@@ -3808,7 +3808,7 @@ function getHisResultsHtml() {
 
 /**
  * Renders the dedicated Mechanic Dashboard view.
- * Features greeting, 3 mechanic KPI cards (Active Repairs, Awaiting Parts, Done Today), and Open Jobs table.
+ * Features greeting, 3 mechanic KPI cards (Active Repairs, Awaiting Parts, Done Today), and Open Jobs card grid.
  * Excludes revenue, pending settlement, and links to inaccessible pages.
  * @returns {string} HTML string.
  */
@@ -3821,6 +3821,16 @@ function dashMechanic() {
 
   // 1. ACTIVE REPAIRS: all open jobs, not Completed, Cancelled, or Ready for Pickup
   const openJobs = D.wo.filter((o) => o.st !== "Completed" && o.st !== "Cancelled" && !o.cancel && o.st !== "Ready for Pickup");
+
+  // Show up to 8 newest open jobs (sorted by date descending, then array order descending)
+  const recentOpenJobs = openJobs
+    .map((o, idx) => ({ o, idx }))
+    .sort((a, b) => {
+      const dateCmp = String(b.o.at || "").localeCompare(String(a.o.at || ""));
+      return dateCmp !== 0 ? dateCmp : b.idx - a.idx;
+    })
+    .slice(0, 8)
+    .map((entry) => entry.o);
 
   // 2. AWAITING PARTS: all jobs with status "Awaiting Parts/Approval"
   const awaitingPartsJobs = D.wo.filter((o) => o.st === "Awaiting Parts/Approval" && !o.cancel);
@@ -3849,36 +3859,6 @@ function dashMechanic() {
   const stat = (i, bg, l, n, t) =>
     `<div class="card st"><div class="ic" style="background:${bg}">${i}</div><div><small>${l}</small><b>${Number(n) || 0}</b>${t}</div></div>`;
 
-  const renderComplaintChips = (o) => {
-    const list = Array.isArray(o.complaints) ? o.complaints.filter(Boolean) : [];
-    if (!list.length) return "—";
-    return list.slice(0, 2).map((c) =>
-      `<span class="badge" style="background:var(--bg-subtle);color:var(--text-muted);font-size:11px;padding:2px 8px;border-radius:12px;margin-right:4px;display:inline-block;border:1px solid var(--border)">${escHtml(c)}</span>`
-    ).join("");
-  };
-
-  const renderRow = (o) => {
-    const b = bike(o.bid);
-    const jo = getJobNumber(o);
-    const plate = b ? b.plate : "NO PLATE";
-    const bikeDesc = b ? `${b.make || ""} ${b.model || ""}`.trim() : "Unknown";
-
-    return `
-      <tr>
-        <td><b>${escHtml(jo)}</b></td>
-        <td>
-          <b>${escHtml(plate)}</b>
-          <br><small style="color:var(--text-muted)">${escHtml(bikeDesc)}</small>
-        </td>
-        <td>${badge(o.st)}</td>
-        <td>${renderComplaintChips(o)}</td>
-        <td class="r" style="white-space:nowrap">
-          <button type="button" class="btn g sm" onclick="openInspModal('${o.id}')">Job card</button>
-        </td>
-      </tr>
-    `;
-  };
-
   return `
     <div class="card top">
       <div>
@@ -3901,25 +3881,12 @@ function dashMechanic() {
           <span style="display:inline-flex;align-items:center;gap:6px">${LINE_ICONS.rep} Open Jobs</span>
           <button type="button" class="btn g sm" onclick="go('rep')">View all</button>
         </div>
-        ${openJobs.length ? `
-          <div class="tw">
-            <table>
-              <thead>
-                <tr>
-                  <th>JOB NO.</th>
-                  <th>PLATE / MOTORCYCLE</th>
-                  <th>STATUS</th>
-                  <th>COMPLAINT</th>
-                  <th class="r"></th>
-                </tr>
-              </thead>
-              <tbody>
-                ${openJobs.map(renderRow).join("")}
-              </tbody>
-            </table>
+        ${recentOpenJobs.length ? `
+          <div class="rep-grid mech-open-jobs-grid">
+            ${recentOpenJobs.map((o) => renderRepCard(o)).join("")}
           </div>
         ` : `
-          <div class="empty">No open repair jobs.</div>
+          <div class="empty">No open jobs.</div>
         `}
       </div>
     </div>
@@ -10010,10 +9977,9 @@ function getInspStep2Html() {
         <!-- Shared Add to Findings Bar -->
         ${getSharedAddToFindingsBarHtml()}
 
-        <!-- Panel A Footer Buttons -->
-        <div class="insp-footer" style="position:static;padding-top:20px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+        <!-- Panel A Footer Buttons: Back only; switch to Findings via top tab -->
+        <div class="insp-footer" style="position:static;padding-top:20px;border-top:1px solid var(--border);display:flex;justify-content:flex-start;align-items:center">
           <button type="button" class="btn g" style="min-height:44px;padding:0 20px" onclick="setInspDraftStep(1)">← Back</button>
-          <button type="button" class="btn" style="min-height:44px;padding:0 20px" onclick="setInspDiagView('findings')">Next: Findings &amp; Services →</button>
         </div>
       </div>
 
@@ -10500,14 +10466,13 @@ function addDtcCodeFromInputs() {
   if (entry) {
     const otherVariants = Array.isArray(entry.dtc) ? entry.dtc.filter((v) => v !== codeToRecord) : [];
     const checks = Array.isArray(entry.checks) ? [...entry.checks] : [];
-    const parts = Array.isArray(entry.parts) ? [...entry.parts] : [];
+    // New DTC records do not track or copy Suggested Parts from DTC_LIBRARY
     const newRecord = {
       code: codeToRecord,
       desc: rawDesc || entry.desc || "",
       err: entry.err || "",
       part: entry.part || "",
       checks: checks,
-      parts: parts,
       done: new Array(checks.length).fill(false),
       verified: "",
       custom: false,
@@ -10525,7 +10490,6 @@ function addDtcCodeFromInputs() {
       err: "",
       part: "",
       checks: [],
-      parts: [],
       done: [],
       verified: "",
       custom: true,
@@ -10599,7 +10563,6 @@ function getDtcRecordedCodesHtml() {
     const actionBtnHtml = getDtcCardActionBtnHtml(c);
 
     const checks = Array.isArray(c.checks) ? c.checks : [];
-    const parts = Array.isArray(c.parts) ? c.parts : [];
     const doneList = Array.isArray(c.done) ? c.done : [];
     const isExpanded = Boolean(c.expanded);
 
@@ -10645,7 +10608,7 @@ function getDtcRecordedCodesHtml() {
           </div>
         </div>
 
-        <!-- Collapsible details section (troubleshooting, suggested parts, verified findings) -->
+        <!-- Collapsible details section (troubleshooting, verified findings) -->
         <div
           id="dtc-details-${code}"
           class="dtc-details-collapse"
@@ -10689,35 +10652,6 @@ function getDtcRecordedCodesHtml() {
             ` : `
               <div style="font-size:12px;color:var(--text-muted);font-style:italic">
                 No steps in the library. Add your own checks in the notes below.
-              </div>
-            `}
-          </div>
-
-          <!-- Suggested Parts -->
-          <div class="dtc-card-section" style="margin-bottom:12px">
-            <div class="dtc-section-title" style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px">
-              SUGGESTED PARTS
-            </div>
-            ${parts.length > 0 ? `
-              <div class="dtc-parts-chips-wrap" style="display:flex;flex-wrap:wrap;gap:6px">
-                ${parts.map((pt) => {
-                  const fromId = `dtc.${c.code}|${pt}`;
-                  const isAdded = Array.isArray(inspDraft.items) && inspDraft.items.some((it) => it.from === fromId);
-                  return `
-                    <button
-                      type="button"
-                      class="dtc-part-chip ${isAdded ? 'added' : ''}"
-                      aria-pressed="${isAdded ? 'true' : 'false'}"
-                      onclick="toggleDtcPartChip('${code}', '${escHtml(pt)}')"
-                    >
-                      ${isAdded ? '✓ Added: ' + escHtml(pt) : '+ ' + escHtml(pt)}
-                    </button>
-                  `;
-                }).join("")}
-              </div>
-            ` : `
-              <div style="font-size:12px;color:var(--text-muted);font-style:italic">
-                No suggested parts listed.
               </div>
             `}
           </div>
@@ -10777,37 +10711,6 @@ function toggleDtcStepDone(code, stepIdx, checked) {
 }
 
 /**
- * Toggles a suggested part chip, linking to Recommended Services & Items.
- * @param {string} code
- * @param {string} partName
- */
-function toggleDtcPartChip(code, partName) {
-  readDiagDomIntoDraft();
-  const fromId = `dtc.${code}|${partName}`;
-  if (!Array.isArray(inspDraft.items)) inspDraft.items = [];
-
-  const isAdded = inspDraft.items.some((it) => it.from === fromId);
-  if (isAdded) {
-    inspDraft.items = inspDraft.items.filter((it) => it.from !== fromId);
-  } else {
-    const price = resolveCannedJobPrice("part", partName, 0);
-    inspDraft.items.push({
-      id: uid(),
-      kind: "part",
-      name: partName,
-      src: "shop",
-      qty: 1,
-      price: price,
-      from: fromId,
-      done: false
-    });
-  }
-
-  renderDtcRecordedCodes();
-  renderItemsManager("draft");
-}
-
-/**
  * Live updates mechanic's verified findings textarea value for a code.
  * Keeps textarea focused and updates reminders and findings button without re-rendering card.
  * @param {string} code
@@ -10862,20 +10765,13 @@ function updateDtcDesc(code, val) {
 }
 
 /**
- * Removes a recorded DTC code, its linked items in draft.items, and its untouched auto-inserted findings.
+ * Removes a recorded DTC code and its untouched auto-inserted findings while preserving existing Recommended Services & Items.
  * @param {string} code
  */
 function removeDtcCode(code) {
   readDiagDomIntoDraft();
   if (inspDraft.inspection && inspDraft.inspection.obd && Array.isArray(inspDraft.inspection.obd.codes)) {
     inspDraft.inspection.obd.codes = inspDraft.inspection.obd.codes.filter((x) => x.code !== code);
-  }
-
-  // Remove linked parts added from its chips
-  const prefix = `dtc.${code}|`;
-  if (Array.isArray(inspDraft.items)) {
-    inspDraft.items = inspDraft.items.filter((it) => !(it.from && it.from.startsWith(prefix)));
-    renderItemsManager("draft");
   }
 
   // Remove untouched auto-inserted findings entry
@@ -13200,10 +13096,9 @@ function getInspStep3Html() {
           </div>
         </div>
 
-        <!-- Summary Footer Buttons -->
-        <div class="insp-footer" style="position:static;padding-top:20px;border-top:1px solid var(--border);display:flex;justify-content:space-between">
+        <!-- Summary Footer Buttons: Back only; switch to Customer via top tab -->
+        <div class="insp-footer" style="position:static;padding-top:20px;border-top:1px solid var(--border);display:flex;justify-content:flex-start">
           <button type="button" class="btn g" onclick="setInspDraftStep(2)">← Back</button>
-          <button type="button" class="btn" onclick="setInspConfirmView('customer')">Next: Customer →</button>
         </div>
       </div>
 

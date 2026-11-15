@@ -722,7 +722,6 @@ body.is-mobile .app-scrim,
     width: auto;
     flex: none;
     margin: 0;
-    padding: 0;
   }
 
   html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .app-header-right .btn-switch-account {
@@ -761,7 +760,7 @@ body.is-mobile .app-scrim,
     box-sizing: border-box;
   }
 
-  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .app-header-right .me .av {
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .app-header-right .me .avatar {
     width: 30px;
     height: 30px;
     min-width: 30px;
@@ -778,7 +777,7 @@ body.is-mobile .app-scrim,
     line-height: 1.2;
   }
 
-  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .app-header-right .me-info b {
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .app-header-right .me-name {
     font-size: 14px;
     font-weight: 700;
     white-space: nowrap;
@@ -787,12 +786,11 @@ body.is-mobile .app-scrim,
     max-width: 160px;
   }
 
-  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .app-header-right .me-info span {
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .app-header-right .me-role {
     font-size: 12px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 160px;
   }
 
   html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .app-header-right .btn-logout {
@@ -3972,34 +3970,6 @@ body.logged-in .login-screen {
 
 .dtc-step-text {
   flex: 1;
-}
-
-.dtc-part-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  min-height: 40px;
-  border-radius: 20px;
-  border: 1px solid var(--border);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.dtc-part-chip:hover {
-  border-color: var(--primary);
-  background: var(--bg-subtle, #F8FAFC);
-}
-
-.dtc-part-chip.added {
-  background: #ECFDF5;
-  border-color: #10B981;
-  color: #047857;
-  font-weight: 600;
 }
 
 .dtc-desc-edit-input {
@@ -7753,6 +7723,20 @@ body.is-mobile #rep-results.rep-grid,
 .phone-frame .rep-grid,
 .phone-frame #rep-results.rep-grid {
   grid-template-columns: minmax(0, 1fr) !important;
+}
+
+/* Mechanic Dashboard Open Jobs grid: 4 cols desktop, 2 cols tablet, 1 col phone; left-aligned for 1-2 cards */
+.rep-grid.mech-open-jobs-grid {
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  padding: 16px;
+}
+
+@media (max-width: 600px) {
+  .rep-grid.mech-open-jobs-grid {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 14px;
+  }
 }
 
 .rep-card {
