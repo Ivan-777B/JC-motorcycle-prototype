@@ -1121,9 +1121,11 @@ function getRoleIconSvg(role) {
    SIDEBAR TOGGLE & DRAWER NAVIGATION
    ========================================================== */
 
+/** Single viewport width breakpoint (px) between tablet/phone drawer and laptop docked sidebar. */
+const SIDEBAR_BREAKPOINT = 900;
+
 /**
- * Desktop sidebar state ("open" or "collapsed"), kept for storage key compatibility ("moto1_sidebar").
- * Desktop UI now uses an overlay drawer at all widths.
+ * Desktop sidebar state ("open" or "collapsed"), persisted under "moto1_sidebar".
  */
 let desktopSidebarState = "open";
 try {
@@ -1131,17 +1133,175 @@ try {
   desktopSidebarState = savedSidebar === "collapsed" ? "collapsed" : "open";
 } catch (e) {}
 
-/** Drawer visibility state across all widths. Not saved to localStorage. */
+/** Drawer visibility state for tablet and phone widths (< 900px). Not saved to localStorage. */
 let mobileDrawerOpen = false;
+
+/** Tracks last resolved layout mode so breakpoint crossings close orphaned account popups. */
+let _lastDesktopSidebarMode = null;
 
 /** Collapsed accordion group ids for phone width (<= 640px). */
 const appCollapsedGroups = new Set();
+
+/** Media query matcher for laptop/desktop layout (>= 900px). */
+const sidebarDesktopMQ =
+  typeof window !== "undefined" && typeof window.matchMedia === "function"
+    ? window.matchMedia(`(min-width: ${SIDEBAR_BREAKPOINT}px)`)
+    : null;
 
 /** Media query matcher for phone accordion menu (<= 640px). */
 const appPhoneMQ =
   typeof window !== "undefined" && typeof window.matchMedia === "function"
     ? window.matchMedia("(max-width: 640px)")
     : { matches: false };
+
+/**
+ * Returns true when viewport is >= SIDEBAR_BREAKPOINT and not forced into a mobile preview frame.
+ * @returns {boolean}
+ */
+function isDesktopSidebarMode() {
+  if (typeof document !== "undefined") {
+    const html = document.documentElement;
+    const body = document.body;
+    if (
+      (html && (html.classList.contains("mobile-ui") || html.classList.contains("phone-frame") || html.hasAttribute("data-mobile"))) ||
+      (body && (body.classList.contains("is-mobile") || body.classList.contains("mobile-ui") || body.classList.contains("phone-frame") || body.hasAttribute("data-mobile")))
+    ) {
+      return false;
+    }
+  }
+  if (typeof window !== "undefined") {
+    if (typeof window.matchMedia === "function") {
+      return window.matchMedia(`(min-width: ${SIDEBAR_BREAKPOINT}px)`).matches;
+    }
+    return window.innerWidth >= SIDEBAR_BREAKPOINT;
+  }
+  return true;
+}
+
+/**
+ * Moves the single Switch account and user profile controls between the laptop header
+ * and the mobile/tablet drawer footer without duplicating DOM ids or listeners.
+ * @param {boolean} isDesktop
+ */
+function syncAccountControlsPlacement(isDesktop) {
+  const headerRight = $("app-header-right");
+  const drawerFooter = $("app-drawer-footer");
+  const switcher = $("sidebar-account-switcher");
+  const userBlock = $("sidebar-user");
+  if (!switcher || !userBlock) return;
+
+  const target = isDesktop ? headerRight : drawerFooter;
+  if (!target) return;
+
+  if (switcher.parentNode !== target) {
+    target.appendChild(switcher);
+  }
+  if (userBlock.parentNode !== target) {
+    target.appendChild(userBlock);
+  }
+}
+
+/**
+ * Syncs layout mode between docked laptop sidebar (>= 900px) and overlay drawer (< 900px).
+ * Clears stale drawer/scroll-lock state on desktop and places controls in the right slot.
+ */
+function syncSidebarMode() {
+  const isDesktop = isDesktopSidebarMode();
+  const crossedBreakpoint = _lastDesktopSidebarMode !== null && _lastDesktopSidebarMode !== isDesktop;
+  _lastDesktopSidebarMode = isDesktop;
+
+  if (crossedBreakpoint) {
+    closeAccountSwitcher();
+  }
+
+  const sidebar = $("sidebar");
+  const headerBtn = $("app-menu-btn");
+  const menuBtn = $("btn-mobile-menu");
+  const scrim = $("app-scrim");
+
+  if (isDesktop) {
+    const hadDrawerLock =
+      mobileDrawerOpen ||
+      (document.body && (document.body.classList.contains("drawer-open") || document.body.classList.contains("app-drawer-open") || document.body.classList.contains("resp-scroll-locked"))) ||
+      (document.documentElement && document.documentElement.classList.contains("resp-scroll-locked"));
+
+    mobileDrawerOpen = false;
+    if (hadDrawerLock) {
+      if (document.documentElement) {
+        document.documentElement.classList.remove("resp-scroll-locked");
+      }
+      if (document.body) {
+        document.body.classList.remove("drawer-open", "app-drawer-open", "resp-scroll-locked");
+        document.body.style.overflow = "";
+      }
+    }
+    if (headerBtn) {
+      headerBtn.setAttribute("aria-expanded", "false");
+      headerBtn.setAttribute("aria-label", "Main menu");
+      headerBtn.title = "Main menu";
+    }
+    if (menuBtn) {
+      menuBtn.setAttribute("aria-expanded", "false");
+    }
+    if (scrim) {
+      scrim.setAttribute("aria-hidden", "true");
+    }
+    if (sidebar) {
+      sidebar.setAttribute("aria-hidden", "false");
+    }
+
+    const isCollapsed = desktopSidebarState === "collapsed";
+    if (document.documentElement) {
+      document.documentElement.classList.toggle("sidebar--collapsed", isCollapsed);
+    }
+    if (document.body) {
+      document.body.classList.toggle("sidebar--collapsed", isCollapsed);
+    }
+  } else {
+    if (document.documentElement) {
+      document.documentElement.classList.remove("sidebar--collapsed");
+    }
+    if (document.body) {
+      document.body.classList.remove("sidebar--collapsed");
+    }
+    if (sidebar) {
+      sidebar.setAttribute("aria-hidden", mobileDrawerOpen ? "false" : "true");
+    }
+  }
+
+  syncAccountControlsPlacement(isDesktop);
+  updateAppHeaderBottomVar();
+  updateSidebarToggleUI();
+  syncAppGroups();
+  adjustSidebarPopupPosition();
+}
+
+/**
+ * Toggles the docked laptop sidebar between expanded width and collapsed icon rail,
+ * persisting the preference under "moto1_sidebar".
+ */
+function toggleDesktopSidebar() {
+  if (!isDesktopSidebarMode()) {
+    toggleAppDrawer();
+    return;
+  }
+  desktopSidebarState = desktopSidebarState === "collapsed" ? "open" : "collapsed";
+  const isCollapsed = desktopSidebarState === "collapsed";
+
+  if (document.documentElement) {
+    document.documentElement.classList.toggle("sidebar--collapsed", isCollapsed);
+  }
+  if (document.body) {
+    document.body.classList.toggle("sidebar--collapsed", isCollapsed);
+  }
+
+  try {
+    localStorage.setItem("moto1_sidebar", desktopSidebarState);
+  } catch (e) {}
+
+  updateSidebarToggleUI();
+  adjustSidebarPopupPosition();
+}
 
 /**
  * Syncs --app-header-bottom CSS variable to the real rendered bottom edge of #app-header.
@@ -1166,7 +1326,7 @@ function syncAppGroups() {
   const sidebar = $("sidebar");
   if (!sidebar) return;
 
-  const isPhone = !!(appPhoneMQ && appPhoneMQ.matches);
+  const isPhone = !isDesktopSidebarMode() && !!(appPhoneMQ && appPhoneMQ.matches);
   const heads = sidebar.querySelectorAll("[data-group-head]");
   const items = sidebar.querySelectorAll("[data-group]");
 
@@ -1239,11 +1399,22 @@ function resetAppGroupsForOpen() {
 }
 
 /**
- * Updates the drawer close/toggle button UI inside the sidebar.
+ * Updates the sidebar toggle button icon, title, and aria attributes
+ * for docked laptop collapse/expand (>= 900px) or drawer close (< 900px).
  */
 function updateSidebarToggleUI() {
   const toggleBtn = $("btn-sidebar-toggle");
   if (!toggleBtn) return;
+
+  if (isDesktopSidebarMode()) {
+    const isCollapsed = desktopSidebarState === "collapsed";
+    const label = isCollapsed ? "Expand sidebar" : "Collapse sidebar";
+    toggleBtn.title = label;
+    toggleBtn.setAttribute("aria-label", label);
+    toggleBtn.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
+    toggleBtn.innerHTML = isCollapsed ? ICONS.panelExpand : ICONS.panelCollapse;
+    return;
+  }
 
   toggleBtn.title = "Close menu";
   toggleBtn.setAttribute("aria-label", "Close menu");
@@ -1252,10 +1423,11 @@ function updateSidebarToggleUI() {
 }
 
 /**
- * Opens the slide-in navigation drawer, shows the dim scrim, and locks background scrolling.
+ * Opens the slide-in navigation drawer, shows the dim scrim, and locks background scrolling
+ * on tablet and phone viewports (< 900px). Ignored in laptop mode.
  */
 function openAppDrawer() {
-  if (mobileDrawerOpen) return;
+  if (isDesktopSidebarMode() || mobileDrawerOpen) return;
   const isPhone = !!(appPhoneMQ && appPhoneMQ.matches);
 
   if (isPhone) {
@@ -1369,10 +1541,14 @@ function toggleAppDrawer() {
 }
 
 /**
- * Backward-compatible alias for toggling the navigation drawer.
+ * Toggles the docked sidebar on laptop (>= 900px) or the overlay drawer under 900px.
  */
 function toggleSidebar() {
-  toggleAppDrawer();
+  if (isDesktopSidebarMode()) {
+    toggleDesktopSidebar();
+  } else {
+    toggleAppDrawer();
+  }
 }
 
 /**
@@ -1391,18 +1567,22 @@ function closeSidebarDrawer(opts) {
 }
 
 /**
- * Handles click on the sidebar drawer close button.
+ * Handles click on the sidebar toggle button (collapse/expand on laptop, close drawer under 900px).
  */
 function handleSidebarToggleClick() {
-  closeAppDrawer();
+  if (isDesktopSidebarMode()) {
+    toggleDesktopSidebar();
+  } else {
+    closeAppDrawer();
+  }
 }
 
 /**
- * Traps Tab focus inside the navigation drawer while it is open.
+ * Traps Tab focus inside the navigation drawer while it is open under 900px.
  * @param {KeyboardEvent} e
  */
 function trapDrawerFocus(e) {
-  if (!mobileDrawerOpen || typeof window === "undefined") return;
+  if (!mobileDrawerOpen || isDesktopSidebarMode() || typeof window === "undefined") return;
   if (e.key !== "Tab") return;
 
   const sidebar = $("sidebar");
@@ -1435,24 +1615,14 @@ function trapDrawerFocus(e) {
 }
 
 /**
- * Handles window resize across viewport widths.
- * Ensures legacy sidebar--collapsed state is cleared, updates header height var, and repositions account popup.
+ * Handles window resize across viewport widths and re-syncs docked/drawer sidebar mode.
  */
 let lastWindowWidth = typeof window !== "undefined" ? window.innerWidth : 1024;
 function handleWindowResize() {
   if (typeof window === "undefined") return;
   const currentWidth = window.innerWidth;
-  if (document.documentElement) {
-    document.documentElement.classList.remove("sidebar--collapsed");
-  }
-  if (document.body) {
-    document.body.classList.remove("sidebar--collapsed");
-  }
-  updateAppHeaderBottomVar();
-  updateSidebarToggleUI();
-  syncAppGroups();
   lastWindowWidth = currentWidth;
-  adjustSidebarPopupPosition();
+  syncSidebarMode();
 }
 if (typeof window !== "undefined") {
   window.addEventListener("resize", handleWindowResize);
@@ -1478,33 +1648,32 @@ if (typeof window !== "undefined") {
     }
   });
 
-  // matchMedia change listeners: safely handle crossing breakpoints (bound once)
-  if (window.matchMedia) {
-    const mql = window.matchMedia("(max-width: 899.98px)");
-    const handleBreakpointCross = (e) => {
-      if (!e.matches && mobileDrawerOpen) {
-        closeSidebarDrawer();
-      }
+  // matchMedia change listener for the single 900px sidebar breakpoint (bound once)
+  if (sidebarDesktopMQ && !sidebarDesktopMQ._boundDesktopChange) {
+    sidebarDesktopMQ._boundDesktopChange = true;
+    const handleDesktopBreakpointChange = () => {
+      syncSidebarMode();
     };
-    if (typeof mql.addEventListener === "function") {
-      mql.addEventListener("change", handleBreakpointCross);
-    } else if (typeof mql.addListener === "function") {
-      mql.addListener(handleBreakpointCross);
+    if (typeof sidebarDesktopMQ.addEventListener === "function") {
+      sidebarDesktopMQ.addEventListener("change", handleDesktopBreakpointChange);
+    } else if (typeof sidebarDesktopMQ.addListener === "function") {
+      sidebarDesktopMQ.addListener(handleDesktopBreakpointChange);
     }
   }
 
   if (appPhoneMQ && !appPhoneMQ._boundPhoneChange) {
     appPhoneMQ._boundPhoneChange = true;
     const handlePhoneBreakpointChange = () => {
-      closeAppDrawer({ restoreFocus: false });
+      if (!isDesktopSidebarMode()) {
+        closeAppDrawer({ restoreFocus: false });
+      }
       const sidebar = $("sidebar");
       if (sidebar) {
         sidebar.querySelectorAll(".is-group-collapsed").forEach((el) => el.classList.remove("is-group-collapsed"));
         sidebar.querySelectorAll(".is-open").forEach((el) => el.classList.remove("is-open"));
       }
       appCollapsedGroups.clear();
-      syncAppGroups();
-      updateAppHeaderBottomVar();
+      syncSidebarMode();
     };
     if (typeof appPhoneMQ.addEventListener === "function") {
       appPhoneMQ.addEventListener("change", handlePhoneBreakpointChange);
@@ -1534,10 +1703,8 @@ function renderSidebarUser() {
 
 /**
  * Smart sidebar account switcher popup positioner.
- * Positions popup with position: fixed relative to the viewport.
- * Automatically chooses downward or upward opening depending on available space,
- * caps natural height at 320px, handles collapsed rail right-side alignment,
- * and sets popup--up / popup--down classes and data-popup-dir on the button.
+ * In laptop mode (>= 900px), opens below the header Switch account button, right-aligned (~280px), clamped inside the viewport.
+ * Under 900px, opens inside/over the drawer anchored to the button.
  */
 function adjustSidebarPopupPosition() {
   const popup = $("sidebar-account-popup");
@@ -1551,12 +1718,21 @@ function adjustSidebarPopupPosition() {
   popup.style.maxHeight = "320px";
   const naturalH = Math.min(320, popup.scrollHeight || 260);
 
-  // Overlay drawer popup positioning (desktop, tablet, and mobile)
   const rect = btn.getBoundingClientRect();
   popup.style.position = "fixed";
-  popup.style.left = Math.round(rect.left) + "px";
-  popup.style.width = Math.round(rect.width) + "px";
+  popup.style.right = "auto";
   popup.style.zIndex = "260";
+
+  if (isDesktopSidebarMode()) {
+    const popupW = Math.min(280, Math.max(200, winW - 24));
+    let leftPos = Math.round(rect.right - popupW);
+    leftPos = Math.max(12, Math.min(leftPos, winW - popupW - 12));
+    popup.style.left = leftPos + "px";
+    popup.style.width = popupW + "px";
+  } else {
+    popup.style.left = Math.round(rect.left) + "px";
+    popup.style.width = Math.round(rect.width) + "px";
+  }
 
   // Available vertical space
   const spaceBelow = Math.max(0, winH - rect.bottom - 12);
@@ -2015,6 +2191,7 @@ function selectLoginUser(userId) {
   logAudit("Login", matched.email, matched.role, "Sessions");
 
   if (document.documentElement) document.documentElement.classList.add("has-session");
+  syncSidebarMode();
   document.body.classList.remove("logged-out");
   document.body.classList.add("logged-in");
 
@@ -2024,6 +2201,7 @@ function selectLoginUser(userId) {
 
   renderSidebarUser();
   renderNav();
+  syncSidebarMode();
 
   if (targetPage) {
     go(targetPage);
@@ -2094,6 +2272,7 @@ function login() {
   logAudit("Login", matched.email, matched.role, "Sessions");
 
   if (document.documentElement) document.documentElement.classList.add("has-session");
+  syncSidebarMode();
   document.body.classList.remove("logged-out");
   document.body.classList.add("logged-in");
 
@@ -2103,6 +2282,7 @@ function login() {
 
   renderSidebarUser();
   renderNav();
+  syncSidebarMode();
 
   if (targetPage) {
     go(targetPage);
@@ -2158,6 +2338,7 @@ function logout() {
   }
 
   closeAccountSwitcher();
+  syncSidebarMode();
 
   const emailEl = $("login-email");
   const errEl = $("login-err");
@@ -2195,6 +2376,7 @@ function syncViewForRole() {
     document.body.classList.remove("logged-in");
     document.body.classList.add("logged-out");
     closeAccountSwitcher();
+    syncSidebarMode();
     const emailEl = $("login-email");
     if (emailEl) openLoginDropdown();
     return;
@@ -2206,6 +2388,7 @@ function syncViewForRole() {
 
   renderSidebarUser();
   renderNav();
+  syncSidebarMode();
 
   const allowed = getRoleNav(u.activeRole);
   if (allowed.length > 0) {
@@ -2230,7 +2413,7 @@ function syncViewForRole() {
 document.addEventListener("click", (e) => {
   const groupHead = e.target && e.target.closest ? e.target.closest("#sidebar [data-group-head]") : null;
   if (groupHead) {
-    if (appPhoneMQ && appPhoneMQ.matches) {
+    if (!isDesktopSidebarMode() && appPhoneMQ && appPhoneMQ.matches) {
       const gid = groupHead.getAttribute("data-group-head");
       if (gid) toggleAppGroup(gid);
     }
@@ -2273,7 +2456,7 @@ document.addEventListener("click", (e) => {
 document.addEventListener("keydown", (e) => {
   trapDrawerFocus(e);
 
-  if ((e.key === "Enter" || e.key === " ") && appPhoneMQ && appPhoneMQ.matches) {
+  if ((e.key === "Enter" || e.key === " ") && !isDesktopSidebarMode() && appPhoneMQ && appPhoneMQ.matches) {
     const activeEl = document.activeElement;
     const groupHead = activeEl && activeEl.closest ? activeEl.closest("#sidebar [data-group-head]") : null;
     if (groupHead) {
@@ -2302,7 +2485,7 @@ document.addEventListener("keydown", (e) => {
     }
   }
 
-  // Ctrl+B (or Cmd+B) toggles navigation drawer when logged in, ignored while typing
+  // Ctrl+B (or Cmd+B) toggles laptop docked sidebar or mobile drawer when logged in, ignored while typing
   if ((e.ctrlKey || e.metaKey) && (e.key === "b" || e.key === "B")) {
     const el = document.activeElement;
     const tag = el ? (el.tagName || "").toLowerCase() : "";
@@ -2310,7 +2493,7 @@ document.addEventListener("keydown", (e) => {
     if (el && el.isContentEditable) return;
     if (document.body && document.body.classList.contains("logged-in")) {
       e.preventDefault();
-      toggleAppDrawer();
+      toggleSidebar();
     }
   }
 });
@@ -2948,6 +3131,7 @@ function go(v) {
   if (mobileDrawerOpen) {
     closeAppDrawer({ restoreFocus: false });
   }
+  syncSidebarMode();
   if (!canOpen(v)) return;
   if (v === "audit") {
     const u = getCurrentUser();
@@ -19197,10 +19381,8 @@ function initAuth() {
   const yearEl = $("login-year");
   if (yearEl) yearEl.textContent = new Date().getFullYear();
 
-  // 1. Read drawer state & ensure legacy collapsed rail class is not active
-  if (document.documentElement) document.documentElement.classList.remove("sidebar--collapsed");
-  if (document.body) document.body.classList.remove("sidebar--collapsed");
-  updateSidebarToggleUI();
+  // 1. Sync sidebar mode and controls placement before first authenticated paint
+  syncSidebarMode();
 
   // Read users & session
   const users = loadUsers();
@@ -19224,6 +19406,7 @@ function initAuth() {
     // Render sidebar user profile and navigation
     renderSidebarUser();
     renderNav();
+    syncSidebarMode();
 
     // 3. Choose the page in order:
     // a. URL hash if valid page key and canOpen() allows it
@@ -19253,7 +19436,8 @@ function initAuth() {
       $("main").innerHTML = renderNoAccess();
     }
 
-    // Show the app shell
+    // Show the app shell after mode and controls are synced
+    syncSidebarMode();
     document.body.classList.remove("logged-out");
     document.body.classList.add("logged-in");
   } else {
@@ -19269,6 +19453,7 @@ function initAuth() {
     if (document.documentElement) document.documentElement.classList.remove("has-session");
     document.body.classList.remove("logged-in");
     document.body.classList.add("logged-out");
+    syncSidebarMode();
 
     const emailEl = $("login-email");
     if (emailEl) {

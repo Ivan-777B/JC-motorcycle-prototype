@@ -16,6 +16,13 @@
           document.documentElement.classList.add("has-session");
         }
       }
+      // Restore laptop collapsed sidebar preference before first paint to prevent flash
+      var isDesktopSidebar = window.matchMedia
+        ? window.matchMedia("(min-width: 900px)").matches
+        : window.innerWidth >= 900;
+      if (isDesktopSidebar && localStorage.getItem("moto1_sidebar") === "collapsed") {
+        document.documentElement.classList.add("sidebar--collapsed");
+      }
     } catch (e) {}
   </script>
 </head>
@@ -112,6 +119,7 @@
       <span class="app-header-title">MotoShop</span>
     </div>
   </div>
+  <div id="app-header-right" class="app-header-right"></div>
 </header>
 <div id="app-scrim" class="app-scrim" onclick="closeAppDrawer()" aria-hidden="true"></div>
 
@@ -177,7 +185,7 @@
     <nav id="admin-nav" style="display: none;"></nav>
   </div>
 
-  <div class="app-drawer-footer">
+  <div id="app-drawer-footer" class="app-drawer-footer">
     <!-- TESTING ONLY. Remove or restrict when real permissions are added. -->
     <div id="sidebar-account-switcher" class="sidebar-account-switcher">
       <div class="sidebar-account-wrap">

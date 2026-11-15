@@ -194,6 +194,10 @@ body {
   min-width: 0;
 }
 
+.app-header-right {
+  display: none;
+}
+
 .app-menu-btn {
   all: unset;
   box-sizing: border-box;
@@ -445,7 +449,7 @@ body.is-mobile .app-scrim,
   display: none;
 }
 
-@media (max-width: 899.98px) {
+@media (max-width: 899px) {
   .mobile-ui .btn-mobile-menu,
   [data-mobile] .btn-mobile-menu,
   body.is-mobile .btn-mobile-menu,
@@ -511,6 +515,324 @@ body.is-mobile .app-scrim,
     display: block;
     opacity: 1;
     pointer-events: auto;
+  }
+}
+
+/* ==========================================================
+   LAPTOP & DESKTOP DOCKED SIDEBAR + TOP-RIGHT HEADER (>= 900px)
+   ========================================================== */
+@media (min-width: 900px) {
+  body:not(.logged-in) .app-header-right {
+    display: none !important;
+  }
+
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: var(--app-header-h) minmax(0, 1fr);
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: clip;
+  }
+
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) #app-scrim,
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) #sidebar-backdrop,
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .btn-mobile-menu,
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .app-header-left,
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) #app-drawer-footer,
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .app-drawer-footer {
+    display: none !important;
+  }
+
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) aside#sidebar {
+    grid-column: 1;
+    grid-row: 1 / -1;
+    position: sticky;
+    top: 0;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    width: 250px;
+    min-width: 250px;
+    max-width: 250px;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100vh;
+    max-height: 100dvh;
+    margin: 0;
+    padding: 0;
+    transform: none;
+    visibility: visible;
+    pointer-events: auto;
+    opacity: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border);
+    border-radius: 0;
+    box-shadow: none;
+    overflow: hidden;
+    z-index: 210;
+    box-sizing: border-box;
+    transition: width 0.2s cubic-bezier(0.2, 0, 0, 1), min-width 0.2s cubic-bezier(0.2, 0, 0, 1), max-width 0.2s cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) aside#sidebar .logo-row {
+    flex: none;
+    height: var(--app-header-h);
+    min-height: var(--app-header-h);
+    box-sizing: border-box;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0 12px 0 18px;
+    margin: 0;
+  }
+
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) aside#sidebar .btn-sidebar-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0;
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) aside#sidebar .btn-sidebar-toggle:focus-visible,
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) aside#sidebar nav button:focus-visible,
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .app-header-right .btn-switch-account:focus-visible,
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .app-header-right .btn-logout:focus-visible {
+    outline: 2px solid var(--accent, #2563eb);
+    outline-offset: 2px;
+  }
+
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) aside#sidebar .app-nav-scroll {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 8px 10px 16px;
+    box-sizing: border-box;
+  }
+
+  html.sidebar--collapsed:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) aside#sidebar,
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in.sidebar--collapsed:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) aside#sidebar {
+    width: 80px;
+    min-width: 80px;
+    max-width: 80px;
+  }
+
+  html.sidebar--collapsed:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) aside#sidebar .logo-row,
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in.sidebar--collapsed:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) aside#sidebar .logo-row {
+    padding: 0 6px;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  html.sidebar--collapsed:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) aside#sidebar .logo,
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in.sidebar--collapsed:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) aside#sidebar .logo {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    flex-shrink: 0;
+  }
+
+  html.sidebar--collapsed:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) aside#sidebar .logo-text,
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in.sidebar--collapsed:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) aside#sidebar .logo-text {
+    display: none;
+  }
+
+  html.sidebar--collapsed:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) aside#sidebar .app-nav-scroll,
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in.sidebar--collapsed:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) aside#sidebar .app-nav-scroll {
+    padding: 8px 6px 16px;
+  }
+
+  html.sidebar--collapsed:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) aside#sidebar .nl,
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in.sidebar--collapsed:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) aside#sidebar .nl {
+    font-size: 0;
+    line-height: 0;
+    color: transparent;
+    height: 1px;
+    min-height: 1px;
+    padding: 0;
+    margin: 12px 14px;
+    background: var(--border);
+    overflow: hidden;
+  }
+
+  html.sidebar--collapsed:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) aside#sidebar nav button,
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in.sidebar--collapsed:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) aside#sidebar nav button {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
+    padding: 0;
+    margin: 0 auto;
+    justify-content: center;
+    gap: 0;
+    border-radius: 14px;
+  }
+
+  html.sidebar--collapsed:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) aside#sidebar nav button .nav-text,
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in.sidebar--collapsed:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) aside#sidebar nav button .nav-text {
+    display: none;
+  }
+
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) header.app-header {
+    grid-column: 2;
+    grid-row: 1;
+    position: sticky;
+    top: 0;
+    left: auto;
+    right: auto;
+    width: 100%;
+    height: var(--app-header-h);
+    min-height: var(--app-header-h);
+    padding: 0 max(24px, env(safe-area-inset-right, 0px)) 0 24px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+    box-shadow: none;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    box-sizing: border-box;
+    z-index: 200;
+  }
+
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .app-header-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-left: auto;
+    min-width: 0;
+  }
+
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .app-header-right #sidebar-account-switcher {
+    position: relative;
+    width: auto;
+    flex: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .app-header-right .btn-switch-account {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: auto;
+    height: 40px;
+    min-height: 40px;
+    padding: 0 12px;
+    margin: 0;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    box-sizing: border-box;
+  }
+
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .app-header-right #sidebar-user,
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .app-header-right .me {
+    width: auto;
+    min-width: 0;
+    height: 40px;
+    min-height: 40px;
+    margin: 0;
+    padding: 0 0 0 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid var(--border);
+    border-radius: 9999px;
+    background: var(--bg-subtle, #f8fafc);
+    box-sizing: border-box;
+  }
+
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .app-header-right .me .av {
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    min-height: 30px;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .app-header-right .me-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+    line-height: 1.2;
+  }
+
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .app-header-right .me-info b {
+    font-size: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+  }
+
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .app-header-right .me-info span {
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+  }
+
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .app-header-right .btn-logout {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0;
+    margin: -1px -1px -1px 2px;
+    border-radius: 9999px;
+    flex-shrink: 0;
+  }
+
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) #sidebar-account-popup,
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .sidebar-account-popup {
+    top: auto;
+    bottom: auto;
+    left: auto;
+    right: auto;
+    width: 280px;
+    max-width: calc(100vw - 24px);
+    z-index: 260;
+  }
+
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) main#main {
+    grid-column: 2;
+    grid-row: 2;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    margin: 0;
+    padding: 24px max(24px, env(safe-area-inset-right, 0px)) 32px max(24px, env(safe-area-inset-left, 0px));
+    box-sizing: border-box;
+  }
+
+  html:not(.mobile-ui):not([data-mobile]):not(.phone-frame) body.logged-in:not(.is-mobile):not(.mobile-ui):not([data-mobile]):not(.phone-frame) .confirm-sticky-ticket {
+    top: calc(var(--app-header-h) + 16px);
   }
 }
 
@@ -7021,8 +7343,8 @@ body.is-mobile #pos-switcher .pos-tab .pos-tab-label-short,
    RESPONSIVE NARROW LAYOUT FIXES & POLISH (resp-)
    ========================================================== */
 
-/* Top Card Margins & Padding inside main at <= 899.98px */
-@media (max-width: 899.98px) {
+/* Top Card Margins & Padding inside main at <= 899px */
+@media (max-width: 899px) {
   main {
     padding: calc(var(--app-header-h) + 16px) max(16px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
     width: 100%;
