@@ -1134,6 +1134,110 @@ try {
 /** Drawer visibility state across all widths. Not saved to localStorage. */
 let mobileDrawerOpen = false;
 
+/** Collapsed accordion group ids for phone width (<= 640px). */
+const appCollapsedGroups = new Set();
+
+/** Media query matcher for phone accordion menu (<= 640px). */
+const appPhoneMQ =
+  typeof window !== "undefined" && typeof window.matchMedia === "function"
+    ? window.matchMedia("(max-width: 640px)")
+    : { matches: false };
+
+/**
+ * Syncs --app-header-bottom CSS variable to the real rendered bottom edge of #app-header.
+ */
+function updateAppHeaderBottomVar() {
+  if (typeof document === "undefined" || !document.documentElement) return;
+  const headerEl = $("app-header");
+  if (!headerEl || !headerEl.getBoundingClientRect) return;
+  const rect = headerEl.getBoundingClientRect();
+  if (rect && rect.bottom > 0) {
+    document.documentElement.style.setProperty("--app-header-bottom", Math.round(rect.bottom) + "px");
+  } else {
+    document.documentElement.style.removeProperty("--app-header-bottom");
+  }
+}
+
+/**
+ * Syncs accordion group headings and items with appCollapsedGroups on phone width,
+ * and ensures plain non-focusable headings / expanded items on wider screens.
+ */
+function syncAppGroups() {
+  const sidebar = $("sidebar");
+  if (!sidebar) return;
+
+  const isPhone = !!(appPhoneMQ && appPhoneMQ.matches);
+  const heads = sidebar.querySelectorAll("[data-group-head]");
+  const items = sidebar.querySelectorAll("[data-group]");
+
+  heads.forEach((head) => {
+    const gid = head.getAttribute("data-group-head");
+    const isHidden = head.style.display === "none";
+    if (!isPhone || isHidden) {
+      head.classList.remove("is-open");
+      head.removeAttribute("role");
+      head.removeAttribute("tabindex");
+      head.removeAttribute("aria-expanded");
+    } else {
+      const isOpen = !appCollapsedGroups.has(gid);
+      head.classList.toggle("is-open", isOpen);
+      head.setAttribute("role", "button");
+      head.setAttribute("tabindex", "0");
+      head.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    }
+  });
+
+  items.forEach((item) => {
+    const gid = item.getAttribute("data-group");
+    if (!isPhone) {
+      item.classList.remove("is-group-collapsed");
+    } else {
+      item.classList.toggle("is-group-collapsed", appCollapsedGroups.has(gid));
+    }
+  });
+}
+
+/**
+ * Toggles an accordion nav group by id and re-syncs DOM classes/attributes.
+ * @param {string} id - Group id ("primary" or "admin").
+ */
+function toggleAppGroup(id) {
+  if (!id) return;
+  if (appCollapsedGroups.has(id)) {
+    appCollapsedGroups.delete(id);
+  } else {
+    appCollapsedGroups.add(id);
+  }
+  syncAppGroups();
+}
+
+/**
+ * Expands only the nav group containing the active route (or the first visible group)
+ * and collapses all other groups when opening on phone width.
+ */
+function resetAppGroupsForOpen() {
+  const sidebar = $("sidebar");
+  if (!sidebar) return;
+
+  const heads = Array.from(sidebar.querySelectorAll("[data-group-head]")).filter(
+    (el) => el.style.display !== "none"
+  );
+  const groupIds = heads.map((el) => el.getAttribute("data-group-head")).filter(Boolean);
+  if (!groupIds.length) return;
+
+  const activeItem = sidebar.querySelector("[data-group].on");
+  const activeGroup = activeItem ? activeItem.getAttribute("data-group") : "";
+  const expandedId = activeGroup && groupIds.includes(activeGroup) ? activeGroup : groupIds[0];
+
+  appCollapsedGroups.clear();
+  groupIds.forEach((gid) => {
+    if (gid !== expandedId) {
+      appCollapsedGroups.add(gid);
+    }
+  });
+  syncAppGroups();
+}
+
 /**
  * Updates the drawer close/toggle button UI inside the sidebar.
  */
@@ -1152,6 +1256,13 @@ function updateSidebarToggleUI() {
  */
 function openAppDrawer() {
   if (mobileDrawerOpen) return;
+  const isPhone = !!(appPhoneMQ && appPhoneMQ.matches);
+
+  if (isPhone) {
+    updateAppHeaderBottomVar();
+    resetAppGroupsForOpen();
+  }
+
   mobileDrawerOpen = true;
 
   if (document.documentElement) {
@@ -1163,7 +1274,13 @@ function openAppDrawer() {
   }
 
   const headerBtn = $("app-menu-btn");
-  if (headerBtn) headerBtn.setAttribute("aria-expanded", "true");
+  if (headerBtn) {
+    headerBtn.setAttribute("aria-expanded", "true");
+    if (isPhone) {
+      headerBtn.setAttribute("aria-label", "Close menu");
+      headerBtn.title = "Close menu";
+    }
+  }
 
   const menuBtn = $("btn-mobile-menu");
   if (menuBtn) menuBtn.setAttribute("aria-expanded", "true");
@@ -1176,11 +1293,22 @@ function openAppDrawer() {
 
   updateSidebarToggleUI();
 
-  const toggleBtn = $("btn-sidebar-toggle");
-  if (toggleBtn) {
+  if (isPhone) {
     setTimeout(() => {
-      try { toggleBtn.focus(); } catch (e) {}
+      try {
+        const firstHead = sidebar
+          ? Array.from(sidebar.querySelectorAll("[data-group-head]")).find((el) => el.style.display !== "none")
+          : null;
+        if (firstHead) firstHead.focus();
+      } catch (e) {}
     }, 50);
+  } else {
+    const toggleBtn = $("btn-sidebar-toggle");
+    if (toggleBtn) {
+      setTimeout(() => {
+        try { toggleBtn.focus(); } catch (e) {}
+      }, 50);
+    }
   }
 }
 
@@ -1203,7 +1331,11 @@ function closeAppDrawer(opts) {
   }
 
   const headerBtn = $("app-menu-btn");
-  if (headerBtn) headerBtn.setAttribute("aria-expanded", "false");
+  if (headerBtn) {
+    headerBtn.setAttribute("aria-expanded", "false");
+    headerBtn.setAttribute("aria-label", "Main menu");
+    headerBtn.title = "Main menu";
+  }
 
   const menuBtn = $("btn-mobile-menu");
   if (menuBtn) menuBtn.setAttribute("aria-expanded", "false");
@@ -1276,10 +1408,15 @@ function trapDrawerFocus(e) {
   const sidebar = $("sidebar");
   if (!sidebar) return;
 
-  const focusable = sidebar.querySelectorAll(
-    'button:not([disabled]):not([style*="display: none"]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  const rawFocusable = sidebar.querySelectorAll(
+    '[data-group-head][tabindex="0"], button:not([disabled]):not([style*="display: none"]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
   );
-  if (!focusable || !focusable.length) return;
+  const focusable = Array.from(rawFocusable).filter((el) => {
+    const cs = window.getComputedStyle ? window.getComputedStyle(el) : null;
+    if (cs && (cs.display === "none" || cs.visibility === "hidden")) return false;
+    return el.getClientRects && el.getClientRects().length > 0;
+  });
+  if (!focusable.length) return;
 
   const first = focusable[0];
   const last = focusable[focusable.length - 1];
@@ -1299,7 +1436,7 @@ function trapDrawerFocus(e) {
 
 /**
  * Handles window resize across viewport widths.
- * Ensures legacy sidebar--collapsed state is cleared and repositions account popup if open.
+ * Ensures legacy sidebar--collapsed state is cleared, updates header height var, and repositions account popup.
  */
 let lastWindowWidth = typeof window !== "undefined" ? window.innerWidth : 1024;
 function handleWindowResize() {
@@ -1311,7 +1448,9 @@ function handleWindowResize() {
   if (document.body) {
     document.body.classList.remove("sidebar--collapsed");
   }
+  updateAppHeaderBottomVar();
   updateSidebarToggleUI();
+  syncAppGroups();
   lastWindowWidth = currentWidth;
   adjustSidebarPopupPosition();
 }
@@ -1339,7 +1478,7 @@ if (typeof window !== "undefined") {
     }
   });
 
-  // matchMedia change listener: safely handles crossing breakpoint
+  // matchMedia change listeners: safely handle crossing breakpoints (bound once)
   if (window.matchMedia) {
     const mql = window.matchMedia("(max-width: 899.98px)");
     const handleBreakpointCross = (e) => {
@@ -1351,6 +1490,26 @@ if (typeof window !== "undefined") {
       mql.addEventListener("change", handleBreakpointCross);
     } else if (typeof mql.addListener === "function") {
       mql.addListener(handleBreakpointCross);
+    }
+  }
+
+  if (appPhoneMQ && !appPhoneMQ._boundPhoneChange) {
+    appPhoneMQ._boundPhoneChange = true;
+    const handlePhoneBreakpointChange = () => {
+      closeAppDrawer({ restoreFocus: false });
+      const sidebar = $("sidebar");
+      if (sidebar) {
+        sidebar.querySelectorAll(".is-group-collapsed").forEach((el) => el.classList.remove("is-group-collapsed"));
+        sidebar.querySelectorAll(".is-open").forEach((el) => el.classList.remove("is-open"));
+      }
+      appCollapsedGroups.clear();
+      syncAppGroups();
+      updateAppHeaderBottomVar();
+    };
+    if (typeof appPhoneMQ.addEventListener === "function") {
+      appPhoneMQ.addEventListener("change", handlePhoneBreakpointChange);
+    } else if (typeof appPhoneMQ.addListener === "function") {
+      appPhoneMQ.addListener(handlePhoneBreakpointChange);
     }
   }
 }
@@ -1859,6 +2018,10 @@ function selectLoginUser(userId) {
   document.body.classList.remove("logged-out");
   document.body.classList.add("logged-in");
 
+  if (mobileDrawerOpen) {
+    closeAppDrawer({ restoreFocus: false });
+  }
+
   renderSidebarUser();
   renderNav();
 
@@ -1933,6 +2096,10 @@ function login() {
   if (document.documentElement) document.documentElement.classList.add("has-session");
   document.body.classList.remove("logged-out");
   document.body.classList.add("logged-in");
+
+  if (mobileDrawerOpen) {
+    closeAppDrawer({ restoreFocus: false });
+  }
 
   renderSidebarUser();
   renderNav();
@@ -2033,6 +2200,10 @@ function syncViewForRole() {
     return;
   }
 
+  if (mobileDrawerOpen) {
+    closeAppDrawer({ restoreFocus: false });
+  }
+
   renderSidebarUser();
   renderNav();
 
@@ -2055,8 +2226,17 @@ function syncViewForRole() {
   }
 }
 
-// Global click-outside listener to close dropdowns
+// Global click-outside & accordion group heading delegated listener
 document.addEventListener("click", (e) => {
+  const groupHead = e.target && e.target.closest ? e.target.closest("#sidebar [data-group-head]") : null;
+  if (groupHead) {
+    if (appPhoneMQ && appPhoneMQ.matches) {
+      const gid = groupHead.getAttribute("data-group-head");
+      if (gid) toggleAppGroup(gid);
+    }
+    return;
+  }
+
   const loginWrap = document.querySelector(".login-input-wrap");
   const loginInp = $("login-email");
   const loginDd = $("login-dropdown");
@@ -2089,9 +2269,20 @@ document.addEventListener("click", (e) => {
   }
 });
 
-// Global keydown listener for focus trap, Escape, and Ctrl+B / Cmd+B drawer toggle
+// Global keydown listener for focus trap, phone group accordion, Escape, and Ctrl+B / Cmd+B drawer toggle
 document.addEventListener("keydown", (e) => {
   trapDrawerFocus(e);
+
+  if ((e.key === "Enter" || e.key === " ") && appPhoneMQ && appPhoneMQ.matches) {
+    const activeEl = document.activeElement;
+    const groupHead = activeEl && activeEl.closest ? activeEl.closest("#sidebar [data-group-head]") : null;
+    if (groupHead) {
+      e.preventDefault();
+      const gid = groupHead.getAttribute("data-group-head");
+      if (gid) toggleAppGroup(gid);
+      return;
+    }
+  }
 
   if (e.key === "Escape") {
     const popup = $("sidebar-account-popup");
@@ -2712,9 +2903,9 @@ function renderNav() {
       navEl.innerHTML = primaryItems
         .map((x) => {
           if (x.isPos) {
-            return `<button class="nav-pos-item ${isPosActive ? "on" : ""}" data-route="pos" onclick="const t = resolvePosTab(); if (t) loadView(t);" title="${x.label}" aria-label="${x.label}"><span>${ICONS[x.icon]}</span><span class="nav-text">${x.label}</span></button>`;
+            return `<button class="nav-pos-item ${isPosActive ? "on" : ""}" data-route="pos" data-group="primary" onclick="const t = resolvePosTab(); if (t) loadView(t);" title="${x.label}" aria-label="${x.label}"><span>${ICONS[x.icon]}</span><span class="nav-text">${x.label}</span></button>`;
           }
-          return `<button class="nav-${x.id} ${x.id == view ? "on" : ""}" data-route="${x.id}" onclick="go('${x.id}')" title="${x.label}" aria-label="${x.label}"><span>${ICONS[x.icon] || ""}</span><span class="nav-text">${x.label}</span></button>`;
+          return `<button class="nav-${x.id} ${x.id == view ? "on" : ""}" data-route="${x.id}" data-group="primary" onclick="go('${x.id}')" title="${x.label}" aria-label="${x.label}"><span>${ICONS[x.icon] || ""}</span><span class="nav-text">${x.label}</span></button>`;
         })
         .join("");
     }
@@ -2734,11 +2925,16 @@ function renderNav() {
       adminNavEl.innerHTML = adminAllowed
         .map(
           (x) =>
-            `<button class="nav-${x[0]} ${x[0] == view ? "on" : ""}" data-route="${x[0]}" onclick="go('${x[0]}')" title="${x[2]}" aria-label="${x[2]}"><span>${ICONS[x[0]] || x[1]}</span><span class="nav-text">${x[2]}</span></button>`
+            `<button class="nav-${x[0]} ${x[0] == view ? "on" : ""}" data-route="${x[0]}" data-group="admin" onclick="go('${x[0]}')" title="${x[2]}" aria-label="${x[2]}"><span>${ICONS[x[0]] || x[1]}</span><span class="nav-text">${x[2]}</span></button>`
         )
         .join("");
     }
   }
+
+  if (window.lucide && typeof lucide.createIcons === "function") {
+    lucide.createIcons();
+  }
+  syncAppGroups();
 }
 
 /**
