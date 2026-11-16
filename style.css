@@ -3864,7 +3864,7 @@ body.logged-in .login-screen {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.dtc-row-desc-input {
+.dtc-row-note-input {
   flex: 1;
   min-width: 140px;
   height: 36px;
@@ -3878,10 +3878,38 @@ body.logged-in .login-screen {
   transition: border-color 0.15s ease;
 }
 
-.dtc-row-desc-input:focus {
+.dtc-row-note-input:focus {
   border-color: var(--primary);
   outline: 2px solid var(--primary);
   outline-offset: 1px;
+}
+
+.dtc-view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.dtc-lookup-preview {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-surface-alt, #F8FAFC);
+}
+
+.dtc-readonly-desc {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.45;
+  margin-bottom: 8px;
 }
 
 .dtc-toggle-btn {
@@ -3953,13 +3981,7 @@ body.logged-in .login-screen {
   gap: 8px;
   font-size: 13px;
   color: var(--text-primary);
-  cursor: pointer;
   line-height: 1.4;
-}
-
-.dtc-step-checkbox {
-  margin-top: 3px;
-  cursor: pointer;
 }
 
 .dtc-step-num {
@@ -3970,15 +3992,6 @@ body.logged-in .login-screen {
 
 .dtc-step-text {
   flex: 1;
-}
-
-.dtc-desc-edit-input {
-  width: 100%;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 8px 10px;
-  font-size: 13px;
-  box-sizing: border-box;
 }
 
 .dtc-verified-input {
@@ -4057,6 +4070,7 @@ body.logged-in .login-screen {
   }
   .dtc-combobox-wrap,
   .dtc-desc-input,
+  .dtc-view-btn,
   .dtc-add-btn {
     width: 100%;
     min-width: 0;

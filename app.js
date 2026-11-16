@@ -373,11 +373,29 @@ function initDatabase() {
   }
 
   // Cleanup any legacy stored odometer fields from existing localStorage data (NOT from audit entries)
+  let savedInspDraft = null;
+  let savedInspDraftStep = null;
   try {
     const rawSaved = typeof localStorage !== "undefined" ? localStorage.getItem("moto1") : null;
     if (rawSaved) {
       const parsed = JSON.parse(rawSaved);
       if (parsed && typeof parsed === "object") {
+        if (parsed._inspDraft && typeof parsed._inspDraft === "object") {
+          savedInspDraft = parsed._inspDraft;
+        }
+        if (typeof parsed._inspDraftStep === "number") {
+          savedInspDraftStep = parsed._inspDraftStep;
+        }
+        if (Array.isArray(parsed.wo) && Array.isArray(wo)) {
+          parsed.wo.forEach((savedWo) => {
+            if (savedWo && savedWo.id && savedWo.inspection) {
+              const targetWo = wo.find((w) => w && w.id === savedWo.id);
+              if (targetWo) {
+                targetWo.inspection = savedWo.inspection;
+              }
+            }
+          });
+        }
         let changed = false;
         ["bk", "motorcycles", "wo", "jobOrders", "transactions", "history"].forEach((k) => {
           if (Array.isArray(parsed[k])) {
@@ -421,6 +439,12 @@ function initDatabase() {
     audit: [],
     commission: {}
   };
+  if (savedInspDraft) {
+    db._inspDraft = savedInspDraft;
+  }
+  if (typeof savedInspDraftStep === "number") {
+    db._inspDraftStep = savedInspDraftStep;
+  }
 
   try {
     localStorage.setItem("moto1", JSON.stringify(db));
@@ -7226,12 +7250,16 @@ let selectedInspectionZone = null;
 let cannedJobToastTimer = null;
 
 /**
- * In-memory state for DTC combobox and selection.
+ * In-memory state for DTC combobox, add-row notes/custom description, and reference preview.
  */
 let dtcComboboxOpen = false;
 let dtcComboboxHighlight = -1;
 let dtcSelectedLibraryEntry = null;
 let dtcSelectedVariantCode = null;
+let dtcAddPreviewOpen = false;
+let dtcAddNoteDraft = "";
+let dtcAddNoteUserTyped = false;
+let dtcCustomDescDraft = "";
 
 /**
  * In-memory map of auto-inserted OBD finding text by fault code: { [code]: { baseEntry: string, lastVerified: string } | string }.
@@ -7251,11 +7279,28 @@ let sharedBarFeedbackTimer = null;
 /**
  * In-memory active inspection draft and step indicator.
  */
-let inspDraft = createFreshInspDraft();
-let inspDraftStep = 1;
+let inspDraft = (D && D._inspDraft && typeof D._inspDraft === "object")
+  ? D._inspDraft
+  : createFreshInspDraft();
+let inspDraftStep = (D && typeof D._inspDraftStep === "number")
+  ? Math.max(1, Math.min(3, D._inspDraftStep))
+  : 1;
 let inspDiagView = "inspection";
 let inspConfirmView = "summary";
 let selectedPhysRailCat = null;
+
+/**
+ * Persists the active inspection draft and step inside D ("moto1").
+ */
+function saveInspDraftState() {
+  try {
+    if (D && typeof D === "object") {
+      D._inspDraft = inspDraft;
+      D._inspDraftStep = inspDraftStep;
+      save();
+    }
+  } catch (e) {}
+}
 
 /**
  * Resets the inspection draft to initial empty state.
@@ -7273,11 +7318,16 @@ function resetInspDraft() {
   dtcComboboxHighlight = -1;
   dtcSelectedLibraryEntry = null;
   dtcSelectedVariantCode = null;
+  dtcAddPreviewOpen = false;
+  dtcAddNoteDraft = "";
+  dtcAddNoteUserTyped = false;
+  dtcCustomDescDraft = "";
   syncDraftObdBike();
   selectedPhysRailCat = null;
   selectedInspectionZone = null;
   obdFindingText = {};
   physFindingText = {};
+  saveInspDraftState();
   if (cannedJobToastTimer) {
     clearTimeout(cannedJobToastTimer);
     cannedJobToastTimer = null;
@@ -7341,6 +7391,7 @@ function setInspDraftStep(newStep) {
   } else if (inspDraftStep === 3) {
     inspConfirmView = "summary";
   }
+  saveInspDraftState();
 
   if (view === "insp") {
     const mainEl = $("main");
@@ -8969,7 +9020,7 @@ function readIntakeDomIntoDraft() {
 }
 
 /**
- * Reads all current values from Step 2 Diagnosis inputs into inspDraft.
+ * Reads all current values from Step 2 Diagnosis inputs (findings, physical item notes, and DTC verified/note fields) into inspDraft.
  */
 function readDiagDomIntoDraft() {
   const f = $("insp-diag-findings");
@@ -8997,15 +9048,16 @@ function readDiagDomIntoDraft() {
       }
     });
 
-    const descInputs = document.querySelectorAll(".dtc-row-desc-input");
-    descInputs.forEach((inp) => {
+    const dtcNoteInputs = document.querySelectorAll(".dtc-row-note-input");
+    dtcNoteInputs.forEach((inp) => {
       const code = inp.dataset.code;
       if (code && inspDraft.inspection && inspDraft.inspection.obd && Array.isArray(inspDraft.inspection.obd.codes)) {
         const found = inspDraft.inspection.obd.codes.find((c) => c.code === code);
-        if (found) found.desc = inp.value;
+        if (found) found.note = inp.value;
       }
     });
   }
+  saveInspDraftState();
 }
 
 /**
@@ -10107,10 +10159,19 @@ function getEcuObdCardHtml() {
 }
 
 /**
- * Builds HTML for 3a: Add row (combobox, stored description input, Add Code button).
+ * Builds HTML for 3a: Add row (combobox, optional notes / custom description input, View button, Add Code button, and preview panel).
  * @returns {string}
  */
 function getDtcAddRowHtml() {
+  const isLibMode = Boolean(dtcSelectedLibraryEntry);
+  const isPreviewOpen = Boolean(isLibMode && dtcAddPreviewOpen);
+  const secondPlaceholder = isLibMode
+    ? "Optional notes"
+    : "Type the description (custom or manufacturer code)";
+  const secondVal = isLibMode
+    ? (dtcAddNoteUserTyped ? dtcAddNoteDraft : "")
+    : dtcCustomDescDraft;
+
   return `
     <div class="dtc-add-section">
       <div class="dtc-add-row">
@@ -10142,14 +10203,28 @@ function getDtcAddRowHtml() {
           <div id="dtc-dropdown-list" class="dtc-dropdown" role="listbox" style="display:none"></div>
         </div>
 
-        <!-- Stored Description Input -->
+        <!-- Optional Notes (library code) or Custom Description Input -->
         <input
           type="text"
           id="dtc-desc-input"
           class="dtc-desc-input"
-          placeholder="Type the description (custom or manufacturer code)"
+          placeholder="${escHtml(secondPlaceholder)}"
+          aria-label="${escHtml(secondPlaceholder)}"
+          value="${escHtml(secondVal)}"
+          oninput="onDtcSecondInput(this.value)"
           onkeydown="if(event.key==='Enter'){event.preventDefault();addDtcCodeFromInputs();}"
         />
+
+        <!-- View / Hide Preview Button (library codes only) -->
+        <button
+          type="button"
+          id="dtc-input-view-btn"
+          class="btn g sm dtc-view-btn"
+          style="display:${isLibMode ? "inline-flex" : "none"}"
+          aria-expanded="${isPreviewOpen ? "true" : "false"}"
+          aria-controls="dtc-lookup-preview"
+          onclick="toggleDtcInputPreview()"
+        >${isPreviewOpen ? "Hide" : "View"}</button>
 
         <!-- Add Code Button -->
         <button
@@ -10161,9 +10236,124 @@ function getDtcAddRowHtml() {
           Add Code
         </button>
       </div>
+      <div
+        id="dtc-lookup-preview"
+        class="dtc-lookup-preview"
+        style="display:${isPreviewOpen ? "block" : "none"}"
+      >${isPreviewOpen ? getDtcLookupPreviewInnerHtml() : ""}</div>
       <div id="dtc-add-msg" class="dtc-add-msg" aria-live="polite"></div>
     </div>
   `;
+}
+
+/**
+ * Builds the inner HTML for the add-row library code preview panel (#dtc-lookup-preview).
+ * Shows in order: plain-text description, "Also:" line, "Verify first" note, and numbered troubleshooting steps.
+ * @returns {string}
+ */
+function getDtcLookupPreviewInnerHtml() {
+  if (!dtcSelectedLibraryEntry) return "";
+  const entry = dtcSelectedLibraryEntry;
+  const activeCode = (dtcSelectedVariantCode || "").trim().toUpperCase();
+  const otherVariants = Array.isArray(entry.dtc)
+    ? entry.dtc.filter((v) => v !== activeCode)
+    : [];
+  const checks = Array.isArray(entry.checks) ? entry.checks : [];
+  const caution = entry.caution || "Verify first. Do not replace the part until the checks below are done.";
+
+  return `
+    <div class="dtc-readonly-desc">${escHtml(entry.desc || "")}</div>
+    ${otherVariants.length > 0 ? `
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">
+        <span class="dtc-also-text" style="font-size:12px;color:var(--text-muted)">Also: ${escHtml(otherVariants.join(", "))}</span>
+      </div>
+    ` : ""}
+    ${caution ? `
+      <div class="dtc-caution-line" style="margin-bottom:10px">
+        ${escHtml(caution)}
+      </div>
+    ` : ""}
+    <div class="dtc-card-section">
+      <div class="dtc-section-title" style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px">
+        TROUBLESHOOTING STEPS
+      </div>
+      ${checks.length > 0 ? `
+        <div class="dtc-steps-list" style="display:flex;flex-direction:column;gap:6px">
+          ${checks.map((chk, sIdx) => `
+            <div class="dtc-step-item">
+              <span class="dtc-step-num">${sIdx + 1}.</span>
+              <span class="dtc-step-text">${escHtml(chk)}</span>
+            </div>
+          `).join("")}
+        </div>
+      ` : `
+        <div style="font-size:12px;color:var(--text-muted);font-style:italic">
+          No steps in the library.
+        </div>
+      `}
+    </div>
+  `;
+}
+
+/**
+ * Synchronizes the add-row second input, View button, and preview panel with dtcSelectedLibraryEntry and dtcAddPreviewOpen.
+ */
+function syncDtcAddRowUI() {
+  const isLibMode = Boolean(dtcSelectedLibraryEntry);
+  if (!isLibMode) {
+    dtcAddPreviewOpen = false;
+  }
+  const isPreviewOpen = Boolean(isLibMode && dtcAddPreviewOpen);
+
+  const descInput = $("dtc-desc-input");
+  if (descInput) {
+    const placeholderText = isLibMode
+      ? "Optional notes"
+      : "Type the description (custom or manufacturer code)";
+    descInput.setAttribute("placeholder", placeholderText);
+    descInput.setAttribute("aria-label", placeholderText);
+    const targetVal = isLibMode
+      ? (dtcAddNoteUserTyped ? dtcAddNoteDraft : "")
+      : dtcCustomDescDraft;
+    if (descInput.value !== targetVal) {
+      descInput.value = targetVal;
+    }
+  }
+
+  const viewBtn = $("dtc-input-view-btn");
+  if (viewBtn) {
+    viewBtn.style.display = isLibMode ? "inline-flex" : "none";
+    viewBtn.textContent = isPreviewOpen ? "Hide" : "View";
+    viewBtn.setAttribute("aria-expanded", isPreviewOpen ? "true" : "false");
+  }
+
+  const previewEl = $("dtc-lookup-preview");
+  if (previewEl) {
+    previewEl.style.display = isPreviewOpen ? "block" : "none";
+    previewEl.innerHTML = isPreviewOpen ? getDtcLookupPreviewInnerHtml() : "";
+  }
+}
+
+/**
+ * Toggles the add-row library code preview panel (#dtc-lookup-preview) from the single state variable dtcAddPreviewOpen.
+ */
+function toggleDtcInputPreview() {
+  if (!dtcSelectedLibraryEntry) return;
+  dtcAddPreviewOpen = !Boolean(dtcAddPreviewOpen);
+  syncDtcAddRowUI();
+}
+
+/**
+ * Tracks user typing in the second input of the DTC add row (Optional notes for library codes, description for custom codes).
+ * @param {string} val
+ */
+function onDtcSecondInput(val) {
+  if (dtcSelectedLibraryEntry) {
+    dtcAddNoteDraft = val;
+    dtcAddNoteUserTyped = true;
+  } else {
+    dtcCustomDescDraft = val;
+  }
 }
 
 /**
@@ -10247,6 +10437,7 @@ function renderDtcDropdown(query) {
 
 /**
  * Handles typing in the DTC search combobox input.
+ * Switches add-row state when the input cleanly matches a library code or returns to custom mode.
  * @param {string} val
  */
 function onDtcSearchInput(val) {
@@ -10257,6 +10448,26 @@ function onDtcSearchInput(val) {
     msgEl.textContent = "";
     msgEl.className = "dtc-add-msg";
   }
+  const cleanVal = (val || "").trim().toUpperCase();
+  if (!cleanVal) {
+    dtcSelectedLibraryEntry = null;
+    dtcSelectedVariantCode = null;
+    dtcAddPreviewOpen = false;
+    dtcAddNoteDraft = "";
+    dtcAddNoteUserTyped = false;
+    dtcCustomDescDraft = "";
+  } else {
+    const libMatch = findDtcInLibrary(cleanVal);
+    if (libMatch) {
+      dtcSelectedLibraryEntry = libMatch.entry;
+      dtcSelectedVariantCode = libMatch.matchedCode || cleanVal;
+    } else {
+      dtcSelectedLibraryEntry = null;
+      dtcSelectedVariantCode = null;
+      dtcAddPreviewOpen = false;
+    }
+  }
+  syncDtcAddRowUI();
   openDtcDropdown();
 }
 
@@ -10317,7 +10528,7 @@ function updateDtcDropdownHighlight(options) {
 }
 
 /**
- * Clears the DTC search combobox and resets selections.
+ * Clears the DTC search combobox and resets add-row notes, custom description, and preview state.
  */
 function clearDtcSearchInput() {
   const input = $("dtc-search-input");
@@ -10327,12 +10538,15 @@ function clearDtcSearchInput() {
     input.value = "";
     input.focus();
   }
-  if (descInput && dtcSelectedLibraryEntry) {
+  if (clearBtn) clearBtn.style.display = "none";
+  dtcAddPreviewOpen = false;
+  dtcAddNoteDraft = "";
+  dtcAddNoteUserTyped = false;
+  dtcCustomDescDraft = "";
+  if (descInput) {
     descInput.value = "";
   }
-  if (clearBtn) clearBtn.style.display = "none";
-  dtcSelectedLibraryEntry = null;
-  dtcSelectedVariantCode = null;
+  syncDtcAddRowUI();
   const msgEl = $("dtc-add-msg");
   if (msgEl) {
     msgEl.textContent = "";
@@ -10343,7 +10557,7 @@ function clearDtcSearchInput() {
 
 /**
  * Selects a library entry from the DTC dropdown.
- * Auto-fills code and description inputs so user can edit both before adding.
+ * Auto-fills code input and switches second input to Optional notes without auto-filling description.
  * @param {number} idx
  * @param {string} matchedCode
  */
@@ -10360,8 +10574,8 @@ function selectDtcOption(idx, matchedCode) {
     dtcSelectedLibraryEntry = match.entry;
     dtcSelectedVariantCode = matchedCode || match.matchedCode;
     if (input) input.value = dtcSelectedVariantCode;
+    syncDtcAddRowUI();
     if (descInput) {
-      descInput.value = match.entry.desc || "";
       descInput.focus();
     }
   }
@@ -10371,7 +10585,7 @@ function selectDtcOption(idx, matchedCode) {
 
 /**
  * Selects custom code from the DTC dropdown.
- * Auto-fills code input and focuses description input for editing before adding.
+ * Keeps editable custom description input and hides View/preview.
  * @param {string} code
  */
 function selectCustomDtcOption(code) {
@@ -10380,8 +10594,10 @@ function selectCustomDtcOption(code) {
   const clearBtn = $("dtc-clear-btn");
   dtcSelectedLibraryEntry = null;
   dtcSelectedVariantCode = null;
+  dtcAddPreviewOpen = false;
   if (input) input.value = (code || "").trim().toUpperCase();
   if (clearBtn) clearBtn.style.display = "block";
+  syncDtcAddRowUI();
   closeDtcDropdown();
   if (descInput) descInput.focus();
 }
@@ -10405,6 +10621,7 @@ function highlightExistingDtcRow(code) {
 
 /**
  * Adds a DTC code record from the input fields into draft.inspection.obd.codes.
+ * Library codes store the read-only library description plus optional notes; custom codes store user description.
  */
 function addDtcCodeFromInputs() {
   const input = $("dtc-search-input");
@@ -10413,7 +10630,7 @@ function addDtcCodeFromInputs() {
   const clearBtn = $("dtc-clear-btn");
 
   const rawCode = (input ? input.value : "").trim();
-  const rawDesc = (descInput ? descInput.value : "").trim();
+  const rawSecond = (descInput ? descInput.value : "").trim();
 
   if (!rawCode) {
     if (msgEl) {
@@ -10435,24 +10652,12 @@ function addDtcCodeFromInputs() {
     inspDraft.inspection.obd.codes = [];
   }
 
-  const isDuplicate = inspDraft.inspection.obd.codes.some(
-    (c) => (c.code || "").trim().toUpperCase() === normCode
-  );
-  if (isDuplicate) {
-    if (msgEl) {
-      msgEl.textContent = `${normCode} is already in the list.`;
-      msgEl.className = "dtc-add-msg muted";
-    }
-    highlightExistingDtcRow(normCode);
-    return;
-  }
-
-  // Lookup in library
+  // Lookup in library first so variant shorthand like "p122" resolves to canonical "P0122"
   let entry = null;
   let codeToRecord = normCode;
-  if (dtcSelectedLibraryEntry && dtcSelectedVariantCode === normCode) {
+  if (dtcSelectedLibraryEntry && dtcSelectedVariantCode && dtcSelectedVariantCode.toUpperCase() === normCode) {
     entry = dtcSelectedLibraryEntry;
-    codeToRecord = normCode;
+    codeToRecord = dtcSelectedVariantCode;
   } else {
     const libMatch = findDtcInLibrary(normCode);
     if (libMatch) {
@@ -10461,19 +10666,34 @@ function addDtcCodeFromInputs() {
     }
   }
 
+  const dupTarget = codeToRecord.toUpperCase();
+  const isDuplicate = inspDraft.inspection.obd.codes.some((c) => {
+    const existing = (c.code || "").trim().toUpperCase();
+    return existing === normCode || existing === dupTarget;
+  });
+  if (isDuplicate) {
+    const displayDup = entry ? codeToRecord : normCode;
+    if (msgEl) {
+      msgEl.textContent = `${displayDup} is already in the list.`;
+      msgEl.className = "dtc-add-msg muted";
+    }
+    highlightExistingDtcRow(displayDup);
+    return;
+  }
+
   const nowAt = getNowLocalString();
 
   if (entry) {
     const otherVariants = Array.isArray(entry.dtc) ? entry.dtc.filter((v) => v !== codeToRecord) : [];
     const checks = Array.isArray(entry.checks) ? [...entry.checks] : [];
-    // New DTC records do not track or copy Suggested Parts from DTC_LIBRARY
+    // New DTC records do not track or copy Suggested Parts from DTC_LIBRARY; description always comes from DTC_LIBRARY
     const newRecord = {
       code: codeToRecord,
-      desc: rawDesc || entry.desc || "",
+      desc: entry.desc || "",
+      note: rawSecond || "",
       err: entry.err || "",
       part: entry.part || "",
       checks: checks,
-      done: new Array(checks.length).fill(false),
       verified: "",
       custom: false,
       at: nowAt,
@@ -10486,11 +10706,11 @@ function addDtcCodeFromInputs() {
   } else {
     const newRecord = {
       code: normCode,
-      desc: rawDesc || "",
+      desc: rawSecond || "",
+      note: "",
       err: "",
       part: "",
       checks: [],
-      done: [],
       verified: "",
       custom: true,
       at: nowAt,
@@ -10499,7 +10719,7 @@ function addDtcCodeFromInputs() {
     inspDraft.inspection.obd.codes.push(newRecord);
   }
 
-  // Clear inputs and dropdown for the next entry
+  // Clear inputs, preview, and dropdown for the next entry
   if (input) {
     input.value = "";
     input.focus();
@@ -10512,15 +10732,38 @@ function addDtcCodeFromInputs() {
   }
   dtcSelectedLibraryEntry = null;
   dtcSelectedVariantCode = null;
+  dtcAddPreviewOpen = false;
+  dtcAddNoteDraft = "";
+  dtcAddNoteUserTyped = false;
+  dtcCustomDescDraft = "";
+  syncDtcAddRowUI();
   closeDtcDropdown();
 
+  saveInspDraftState();
   renderDtcRecordedCodes();
   updateSharedAddToFindingsBar();
   updateHotspotsAndTiles();
 }
 
 /**
- * Toggles expand/collapse of an individual DTC code card details.
+ * Resolves the read-only description for a recorded DTC code.
+ * Preserves stored saved descriptions on existing records and falls back to DTC_LIBRARY when present.
+ * @param {Object} c - Recorded DTC code object.
+ * @returns {string}
+ */
+function getDtcDisplayDesc(c) {
+  if (!c) return "";
+  if (typeof c.desc === "string" && c.desc.trim()) return c.desc;
+  const libMatch = c.code ? findDtcInLibrary(c.code) : null;
+  if (libMatch && libMatch.entry && libMatch.entry.desc) {
+    return libMatch.entry.desc;
+  }
+  return "";
+}
+
+/**
+ * Toggles expand/collapse of an individual DTC code card details from the single state variable c.expanded.
+ * Always computes View/Hide label and aria-expanded directly from c.expanded.
  * @param {string} code
  */
 function toggleDtcExpand(code) {
@@ -10530,19 +10773,20 @@ function toggleDtcExpand(code) {
   const c = codes.find((x) => x.code === code);
   const detailsEl = $("dtc-details-" + code);
   const btn = $("dtc-toggle-btn-" + code);
-  if (!detailsEl) return;
-  const isHidden = detailsEl.style.display === "none";
-  detailsEl.style.display = isHidden ? "block" : "none";
-  if (c) c.expanded = isHidden;
+  if (!c || !detailsEl) return;
+  c.expanded = !Boolean(c.expanded);
+  const isNowExpanded = Boolean(c.expanded);
+  detailsEl.style.display = isNowExpanded ? "block" : "none";
   if (btn) {
-    btn.innerHTML = isHidden ? "▲ Hide Details" : "▼ Details";
-    btn.setAttribute("aria-expanded", isHidden ? "true" : "false");
-    btn.title = isHidden ? "Hide details" : "View details";
+    btn.innerHTML = isNowExpanded ? "▲ Hide" : "▼ View";
+    btn.setAttribute("aria-expanded", isNowExpanded ? "true" : "false");
+    btn.title = isNowExpanded ? "Hide details" : "View details";
   }
 }
 
 /**
  * Builds HTML for 3b: Recorded codes list (compact rows with collapsed details by default).
+ * Collapsed row shows Optional notes; expanded details show plain-text description, Also variants, Verify first note, numbered steps, and verified findings.
  * @returns {string}
  */
 function getDtcRecordedCodesHtml() {
@@ -10561,29 +10805,36 @@ function getDtcRecordedCodesHtml() {
       ? `<span class="dtc-also-text" style="font-size:12px;color:var(--text-muted)">Also: ${escHtml(c.variants.join(", "))}</span>`
       : "";
     const actionBtnHtml = getDtcCardActionBtnHtml(c);
-
     const checks = Array.isArray(c.checks) ? c.checks : [];
-    const doneList = Array.isArray(c.done) ? c.done : [];
     const isExpanded = Boolean(c.expanded);
+
+    // Resolve read-only plain-text description: library codes fall back to DTC_LIBRARY if needed; old saved codes keep their saved desc
+    let resolvedDesc = typeof c.desc === "string" ? c.desc : "";
+    if (!resolvedDesc && !c.custom) {
+      const libMatch = findDtcInLibrary(c.code || "");
+      if (libMatch && libMatch.entry && libMatch.entry.desc) {
+        resolvedDesc = libMatch.entry.desc;
+      }
+    }
 
     return `
       <div class="dtc-code-card" id="dtc-row-${code}" data-code="${code}">
         <!-- Top compact row -->
         <div class="dtc-card-top-row">
-          <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:240px;flex-wrap:wrap">
+          <div class="dtc-card-top-left">
             <span class="dtc-code-pill">${code}</span>
             ${errPill}
             <input
               type="text"
-              class="dtc-row-desc-input"
+              class="dtc-row-note-input"
               data-code="${code}"
-              value="${escHtml(c.desc || "")}"
-              placeholder="Code description..."
-              oninput="updateDtcDesc('${code}', this.value)"
-              title="Edit code description"
+              value="${escHtml(c.note || "")}"
+              placeholder="Optional notes"
+              aria-label="Optional notes"
+              oninput="updateDtcNote('${code}', this.value)"
             />
           </div>
-          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          <div class="dtc-card-top-actions">
             <span id="dtc-btn-wrap-${code}">
               ${actionBtnHtml}
             </span>
@@ -10591,29 +10842,32 @@ function getDtcRecordedCodesHtml() {
               type="button"
               class="btn g sm dtc-toggle-btn"
               id="dtc-toggle-btn-${code}"
-              onclick="toggleDtcExpand('${code}')"
+              data-code="${code}"
+              onclick="toggleDtcExpand(this.dataset.code)"
               aria-expanded="${isExpanded ? 'true' : 'false'}"
               title="${isExpanded ? 'Hide details' : 'View details'}"
             >
-              ${isExpanded ? '▲ Hide Details' : '▼ Details'}
+              ${isExpanded ? '▲ Hide' : '▼ View'}
             </button>
             <button
               type="button"
               class="btn g sm dtc-remove-btn"
-              onclick="removeDtcCode('${code}')"
+              data-code="${code}"
+              onclick="removeDtcCode(this.dataset.code)"
               title="Remove code"
               aria-label="Remove ${code}"
-              style="padding:2px 8px;font-size:12px;min-height:36px"
             >✕</button>
           </div>
         </div>
 
-        <!-- Collapsible details section (troubleshooting, verified findings) -->
+        <!-- Collapsible details section (description, Also, Verify first, troubleshooting steps, verified findings) -->
         <div
           id="dtc-details-${code}"
           class="dtc-details-collapse"
-          style="display:${isExpanded ? 'block' : 'none'};margin-top:12px;padding-top:12px;border-top:1px solid var(--border)"
+          style="display:${isExpanded ? 'block' : 'none'}"
         >
+          <div class="dtc-readonly-desc">${resolvedDesc ? escHtml(resolvedDesc) : `<span style="color:var(--text-muted);font-style:italic">No description recorded.</span>`}</div>
+
           ${otherVariants ? `
             <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">
               ${otherVariants}
@@ -10633,21 +10887,12 @@ function getDtcRecordedCodesHtml() {
             </div>
             ${checks.length > 0 ? `
               <div class="dtc-steps-list" style="display:flex;flex-direction:column;gap:6px">
-                ${checks.map((chk, sIdx) => {
-                  const isDone = Boolean(doneList[sIdx]);
-                  return `
-                    <label class="dtc-step-item">
-                      <input
-                        type="checkbox"
-                        class="dtc-step-checkbox"
-                        ${isDone ? "checked" : ""}
-                        onchange="toggleDtcStepDone('${code}', ${sIdx}, this.checked)"
-                      />
-                      <span class="dtc-step-num">${sIdx + 1}.</span>
-                      <span class="dtc-step-text">${escHtml(chk)}</span>
-                    </label>
-                  `;
-                }).join("")}
+                ${checks.map((chk, sIdx) => `
+                  <div class="dtc-step-item">
+                    <span class="dtc-step-num">${sIdx + 1}.</span>
+                    <span class="dtc-step-text">${escHtml(chk)}</span>
+                  </div>
+                `).join("")}
               </div>
             ` : `
               <div style="font-size:12px;color:var(--text-muted);font-style:italic">
@@ -10694,23 +10939,6 @@ function renderDtcRecordedCodes() {
 }
 
 /**
- * Toggles a troubleshooting step checkbox.
- * @param {string} code
- * @param {number} stepIdx
- * @param {boolean} checked
- */
-function toggleDtcStepDone(code, stepIdx, checked) {
-  const codes = (inspDraft.inspection && inspDraft.inspection.obd && Array.isArray(inspDraft.inspection.obd.codes))
-    ? inspDraft.inspection.obd.codes
-    : [];
-  const c = codes.find((x) => x.code === code);
-  if (c) {
-    if (!Array.isArray(c.done)) c.done = [];
-    c.done[stepIdx] = checked;
-  }
-}
-
-/**
  * Live updates mechanic's verified findings textarea value for a code.
  * Keeps textarea focused and updates reminders and findings button without re-rendering card.
  * @param {string} code
@@ -10728,40 +10956,25 @@ function updateDtcVerified(code, val) {
   if (rem) {
     rem.style.display = (val || "").trim() ? "none" : "block";
   }
+  saveInspDraftState();
   renderDtcCardActionBtn(code);
   updateSharedAddToFindingsBar();
 }
 
 /**
- * Toggles between plain text view and textarea edit mode for stored description.
- * @param {string} code
- */
-function toggleEditDtcDesc(code) {
-  const wrap = $("dtc-desc-edit-wrap-" + code);
-  const viewEl = $("dtc-desc-view-" + code);
-  if (!wrap || !viewEl) return;
-  const isHidden = wrap.style.display === "none";
-  wrap.style.display = isHidden ? "block" : "none";
-  viewEl.style.display = isHidden ? "none" : "inline";
-  if (isHidden) {
-    const inp = $("dtc-desc-edit-input-" + code);
-    if (inp) inp.focus();
-  }
-}
-
-/**
- * Updates stored description value for a code.
+ * Live updates optional notes value for a recorded code without re-rendering the card.
  * @param {string} code
  * @param {string} val
  */
-function updateDtcDesc(code, val) {
+function updateDtcNote(code, val) {
   const codes = (inspDraft.inspection && inspDraft.inspection.obd && Array.isArray(inspDraft.inspection.obd.codes))
     ? inspDraft.inspection.obd.codes
     : [];
   const c = codes.find((x) => x.code === code);
   if (c) {
-    c.desc = val;
+    c.note = val;
   }
+  saveInspDraftState();
 }
 
 /**
@@ -10795,6 +11008,7 @@ function removeDtcCode(code) {
     delete obdFindingText[code];
   }
 
+  saveInspDraftState();
   renderDtcRecordedCodes();
   updateSharedAddToFindingsBar();
   updateHotspotsAndTiles();
@@ -10812,7 +11026,7 @@ function formatDtcFindingEntry(c) {
   const codePart = c.code || "";
   const errPart = c.err ? ` (${c.err})` : "";
   const component = c.part || "";
-  let desc = c.desc || "";
+  let desc = getDtcDisplayDesc(c);
   if (component && desc.startsWith(component + ": ")) {
     desc = desc.slice(component.length + 2).trim();
   }
@@ -11298,8 +11512,8 @@ function addSharedResultsToFindings() {
 
 /**
  * Builds HTML for displaying an OBD code summary row/card in Step 3, Job Card, and Service History.
- * Displays: code, error code (if any), component, description, verified findings, and "n of m steps done" when steps exist.
- * Fully compatible with legacy { code, desc } objects.
+ * Displays: code, error code (if any), component, description, and verified findings.
+ * Fully compatible with legacy { code, desc, done } objects without deleting stored fields.
  * @param {Object} c - OBD code object.
  * @returns {string} HTML string.
  */
@@ -11308,7 +11522,7 @@ function getObdCodeSummaryDisplayHtml(c) {
   const code = escHtml(c.code);
   const errPill = c.err ? `<span class="dtc-err-pill">${escHtml(c.err)}</span>` : "";
   const partText = c.part ? `<b>${escHtml(c.part)}</b>` : "";
-  let descText = c.desc || "";
+  let descText = getDtcDisplayDesc(c);
   if (c.part && descText.startsWith(c.part + ": ")) {
     descText = descText.slice(c.part.length + 2).trim();
   }
@@ -11323,13 +11537,6 @@ function getObdCodeSummaryDisplayHtml(c) {
     compAndDesc = cleanDesc;
   }
 
-  let stepsDoneBadge = "";
-  if (Array.isArray(c.checks) && c.checks.length > 0) {
-    const total = c.checks.length;
-    const doneCount = Array.isArray(c.done) ? c.done.filter(Boolean).length : 0;
-    stepsDoneBadge = `<span class="obd-steps-badge" style="font-size:11px;color:var(--text-muted);background:var(--bg-subtle, #F1F5F9);padding:1px 6px;border-radius:4px;border:1px solid var(--border)">${doneCount} of ${total} steps done</span>`;
-  }
-
   const verifiedRaw = typeof c.verified === "string" ? c.verified.trim() : "";
   const verifiedVal = verifiedRaw ? escHtml(verifiedRaw) : "Not recorded";
 
@@ -11339,7 +11546,6 @@ function getObdCodeSummaryDisplayHtml(c) {
         <span class="dtc-code-pill">${code}</span>
         ${errPill}
         ${compAndDesc ? `<span style="color:var(--text-primary)">${compAndDesc}</span>` : ""}
-        ${stepsDoneBadge}
       </div>
       <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">
         <span style="font-weight:600;color:var(--text-primary)">Verified:</span>
