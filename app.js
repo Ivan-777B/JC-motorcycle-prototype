@@ -423,11 +423,19 @@ function initDatabase() {
   // Cleanup any legacy stored odometer fields from existing localStorage data (NOT from audit entries)
   let savedInspDraft = null;
   let savedInspDraftStep = null;
+  let savedAudit = null;
+  let savedSales = null;
   try {
     const rawSaved = typeof localStorage !== "undefined" ? localStorage.getItem("moto1") : null;
     if (rawSaved) {
       const parsed = JSON.parse(rawSaved);
       if (parsed && typeof parsed === "object") {
+        if (Array.isArray(parsed.audit)) {
+          savedAudit = parsed.audit;
+        }
+        if (Array.isArray(parsed.sales)) {
+          savedSales = parsed.sales;
+        }
         if (parsed._inspDraft && typeof parsed._inspDraft === "object") {
           savedInspDraft = parsed._inspDraft;
         }
@@ -455,8 +463,8 @@ function initDatabase() {
     transactions: transactions,
     pt: seedPt,
     sv: seedSv,
-    sales: [],
-    audit: [],
+    sales: Array.isArray(savedSales) ? savedSales : [],
+    audit: Array.isArray(savedAudit) ? savedAudit : [],
     commission: {}
   };
   if (savedInspDraft) {
@@ -844,9 +852,213 @@ function isAdmin() {
 }
 
 /**
- * Audit logging is disabled in the prototype demo.
+ * Canonical registry of audited actions across the prototype.
+ * superOnly actions are restricted to Super Admin view only.
  */
-function logAudit() {}
+const AUDIT_EVENTS = [
+  // Sessions
+  { category: "Sessions", action: "Login", superOnly: false },
+  { category: "Sessions", action: "Logout", superOnly: false },
+
+  // POS & Billing
+  { category: "POS & Billing", action: "Void", superOnly: true },
+  { category: "POS & Billing", action: "Discount", superOnly: true },
+  { category: "POS & Billing", action: "Price override", superOnly: true },
+  { category: "POS & Billing", action: "Refund", superOnly: false },
+  { category: "POS & Billing", action: "Payment edit", superOnly: false },
+
+  // Service
+  { category: "Service", action: "Job cancelled", superOnly: false },
+  { category: "Service", action: "Job deleted", superOnly: false },
+  { category: "Service", action: "Status change", superOnly: false },
+  { category: "Service", action: "Line item added", superOnly: false },
+  { category: "Service", action: "Line item removed", superOnly: false },
+  { category: "Service", action: "Mechanic reassigned", superOnly: false },
+
+  // Catalog (Super Admin only)
+  { category: "Catalog", action: "Price change", superOnly: true },
+  { category: "Catalog", action: "Item created", superOnly: true },
+  { category: "Catalog", action: "Item archived", superOnly: true },
+  { category: "Catalog", action: "Item deleted", superOnly: true },
+
+  // Customers
+  { category: "Customers", action: "Customer deleted", superOnly: false },
+  { category: "Customers", action: "Motorcycle deleted", superOnly: false },
+  { category: "Customers", action: "Plate number edited", superOnly: false },
+  { category: "Customers", action: "Contact number edited", superOnly: false },
+
+  // Security (Super Admin only)
+  { category: "Security", action: "Failed login", superOnly: true },
+  { category: "Security", action: "User created", superOnly: true },
+  { category: "Security", action: "User deactivated", superOnly: true },
+  { category: "Security", action: "Password reset", superOnly: true },
+  { category: "Security", action: "Role changed", superOnly: true }
+];
+
+/**
+ * Returns formatted local timestamp YYYY-MM-DD HH:MM:SS
+ * @param {Date} [d=new Date()]
+ * @returns {string}
+ */
+function getAuditLocalTimestamp(d = new Date()) {
+  const pad = (n) => String(n).padStart(2, "0");
+  const y = d.getFullYear();
+  const m = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hr = pad(d.getHours());
+  const min = pad(d.getMinutes());
+  const sec = pad(d.getSeconds());
+  return `${y}-${m}-${day} ${hr}:${min}:${sec}`;
+}
+
+/**
+ * Checks whether an audit entry is permitted to be viewed by the user.
+ * @param {Object} entry
+ * @param {boolean} isSuperUser
+ * @returns {boolean}
+ */
+function canViewAuditEntry(entry, isSuperUser) {
+  if (isSuperUser) return true;
+  if (!entry) return false;
+  if (entry.cat === "Catalog" || entry.cat === "Security") return false;
+  const match = AUDIT_EVENTS.find((e) => e.action === entry.action && e.category === entry.cat) ||
+                AUDIT_EVENTS.find((e) => e.action === entry.action);
+  if (match && match.superOnly) return false;
+  return true;
+}
+
+/**
+ * Core audit writer function. Appends record to D.audit and persists to localStorage.
+ * @param {string} action - Event action name
+ * @param {string} actorEmailOrName - Actor name or email
+ * @param {string} role - User role key
+ * @param {string} [category="Sessions"] - Event category
+ * @param {string} [ref="-"] - Reference token
+ * @param {string} [note=""] - Details or reason
+ * @returns {Object} Appended entry
+ */
+function logAudit(action, actorEmailOrName, role, category = "Sessions", ref = "-", note = "") {
+  let byName = actorEmailOrName || "System";
+  try {
+    const users = typeof loadUsers === "function" ? loadUsers() : [];
+    const matched = users.find((x) => x && (x.email === actorEmailOrName || x.name === actorEmailOrName));
+    if (matched && matched.name) byName = matched.name;
+  } catch (e) {}
+
+  if (!note) {
+    if (action === "Login") note = "Signed in via demo accounts selector";
+    else if (action === "Logout") note = "Signed out of session";
+  }
+
+  const entry = {
+    id: "aud-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+    at: getAuditLocalTimestamp(),
+    by: byName,
+    role: role || "",
+    cat: category || "Sessions",
+    action: action,
+    ref: ref || "-",
+    note: note || "-"
+  };
+
+  if (typeof D !== "undefined" && D) {
+    if (!Array.isArray(D.audit)) D.audit = [];
+    if (D.audit.length > 0) {
+      const prev = D.audit[D.audit.length - 1];
+      if (prev && prev.action === entry.action && prev.cat === entry.cat && prev.ref === entry.ref && prev.note === entry.note && prev.by === entry.by) {
+        return prev;
+      }
+    }
+    D.audit.push(entry);
+    if (typeof save === "function") save();
+  }
+  return entry;
+}
+
+/**
+ * Unified writer wrapper for all domain actions.
+ * Extracts current user and delegates to logAudit.
+ * @param {string} category
+ * @param {string} action
+ * @param {string} [reference="-"]
+ * @param {string} [details=""]
+ * @returns {Object}
+ */
+function logAuditEvent(category, action, reference = "-", details = "") {
+  const u = typeof getCurrentUser === "function" ? getCurrentUser() : null;
+  const byName = u ? (u.name || u.email || "System") : "System";
+  const role = u ? (u.activeRole || u.role || "") : "";
+  return logAudit(action, byName, role, category, reference, details);
+}
+
+/**
+ * Seeds initial session and narrative sample entries into D.audit without duplicating.
+ */
+function seedAuditEntries() {
+  if (typeof D === "undefined" || !D) return;
+  if (!Array.isArray(D.audit)) D.audit = [];
+
+  const initialSessions = [
+    { id: "seed-sess-01", at: "2026-11-17 08:30:12", by: "Super Admin", role: "superadmin", cat: "Sessions", action: "Login", ref: "—", note: "Signed in via demo accounts selector" },
+    { id: "seed-sess-02", at: "2026-11-17 08:15:40", by: "Maria Santos", role: "admin", cat: "Sessions", action: "Logout", ref: "—", note: "Signed out of session" },
+    { id: "seed-sess-03", at: "2026-11-17 07:45:22", by: "Maria Santos", role: "admin", cat: "Sessions", action: "Login", ref: "—", note: "Signed in via demo accounts selector" },
+    { id: "seed-sess-04", at: "2026-11-16 18:02:15", by: "Larpus", role: "mechanic", cat: "Sessions", action: "Logout", ref: "—", note: "Shift completed; signed out" },
+    { id: "seed-sess-05", at: "2026-11-16 13:00:08", by: "Larpus", role: "mechanic", cat: "Sessions", action: "Login", ref: "—", note: "Signed in via demo accounts selector" },
+    { id: "seed-sess-06", at: "2026-11-16 12:45:30", by: "Hiyo", role: "mechanic", cat: "Sessions", action: "Logout", ref: "—", note: "Signed out of session" },
+    { id: "seed-sess-07", at: "2026-11-16 08:00:19", by: "Hiyo", role: "mechanic", cat: "Sessions", action: "Login", ref: "—", note: "Signed in via demo accounts selector" }
+  ];
+
+  initialSessions.forEach((sess) => {
+    if (!D.audit.some((e) => e.id === sess.id || (e.at === sess.at && e.by === sess.by && e.action === sess.action))) {
+      D.audit.push(sess);
+    }
+  });
+
+  const nowMs = Date.now();
+  const formatRelTime = (hoursAgo) => {
+    const d = new Date(nowMs - hoursAgo * 3600 * 1000);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  };
+
+  const narrativeSamples = [
+    { id: "seed-aud-01", hoursAgo: 3, by: "Maria Santos", role: "admin", cat: "POS & Billing", action: "Void", ref: "TXN-0004", note: "Voided TXN-0004 (\u20B1420). Reason: Customer cancelled before payment." },
+    { id: "seed-aud-02", hoursAgo: 5, by: "Maria Santos", role: "admin", cat: "POS & Billing", action: "Price override", ref: "TXN-0006", note: "Change oil labor: \u20B1150 \u2192 \u20B1120" },
+    { id: "seed-aud-03", hoursAgo: 27, by: "Maria Santos", role: "admin", cat: "POS & Billing", action: "Discount", ref: "TXN-0007", note: "Discount \u20B150 on \u20B1650" },
+    { id: "seed-aud-04", hoursAgo: 30, by: "Maria Santos", role: "admin", cat: "POS & Billing", action: "Payment edit", ref: "TXN-0005", note: "Payment method Cash \u2192 GCash" },
+    { id: "seed-aud-05", hoursAgo: 50, by: "Maria Santos", role: "admin", cat: "POS & Billing", action: "Refund", ref: "TXN-0003", note: "Refunded \u20B1260. Reason: Wrong spark plug." },
+    { id: "seed-aud-06", hoursAgo: 4, by: "Larpus", role: "mechanic", cat: "Service", action: "Status change", ref: "JO-0001", note: "Awaiting Parts/Approval \u2192 In Progress" },
+    { id: "seed-aud-07", hoursAgo: 29, by: "Maria Santos", role: "admin", cat: "Service", action: "Mechanic reassigned", ref: "JO-0002", note: "Larpus \u2192 Hiyo" },
+    { id: "seed-aud-08", hoursAgo: 52, by: "Hiyo", role: "mechanic", cat: "Service", action: "Line item added", ref: "JO-0003", note: "Added after approval: Coolant Temperature Sensor x1 (\u20B1850)" },
+    { id: "seed-aud-09", hoursAgo: 74, by: "Maria Santos", role: "admin", cat: "Service", action: "Job cancelled", ref: "JO-0010", note: "Reason: Customer declined the repair." },
+    { id: "seed-aud-10", hoursAgo: 76, by: "Maria Santos", role: "admin", cat: "Catalog", action: "Price change", ref: "Tune-up", note: "\u20B1350 \u2192 \u20B1400" },
+    { id: "seed-aud-11", hoursAgo: 100, by: "Maria Santos", role: "admin", cat: "Catalog", action: "Item archived", ref: "Valve clearance", note: "Archived service: Valve clearance" },
+    { id: "seed-aud-12", hoursAgo: 102, by: "Maria Santos", role: "admin", cat: "Customers", action: "Plate number edited", ref: "ABC-1243", note: "ABC-1234 \u2192 ABC-1243" },
+    { id: "seed-aud-13", hoursAgo: 124, by: "Maria Santos", role: "admin", cat: "Customers", action: "Customer deleted", ref: "Pedro Reyes", note: "Deleted Pedro Reyes (2 service records)" },
+    { id: "seed-aud-14", hoursAgo: 53, by: "Unknown user", role: "", cat: "Security", action: "Failed login", ref: "-", note: "Failed sign-in attempt on the Admin account." },
+    { id: "seed-aud-15", hoursAgo: 75, by: "Super Admin", role: "superadmin", cat: "Security", action: "Role changed", ref: "Maria Santos", note: "Maria Santos: Mechanic \u2192 Admin" }
+  ];
+
+  narrativeSamples.forEach((item) => {
+    if (!D.audit.some((e) => e.id === item.id)) {
+      D.audit.push({
+        id: item.id,
+        at: formatRelTime(item.hoursAgo),
+        by: item.by,
+        role: item.role,
+        cat: item.cat,
+        action: item.action,
+        ref: item.ref,
+        note: item.note
+      });
+    }
+  });
+
+  if (typeof save === "function") save();
+}
+
+// Seed on module initialization
+seedAuditEntries();
 
 /**
  * Shared modal for requiring a reason on sensitive Super Admin actions.
@@ -978,11 +1190,14 @@ function getInitials(name) {
  * @returns {string} Formatted label.
  */
 function getUserRoleLabel(u) {
-  const meta = ROLES[u.role] || { label: u.role };
-  if (u.role === "mechanic") {
+  if (!u) return "";
+  const roleKey = typeof u === "string" ? u : (u.role || u.activeRole || "");
+  if (!roleKey) return "";
+  const meta = ROLES[roleKey] || { label: roleKey };
+  if (roleKey === "mechanic" && typeof u === "object" && u && u.name) {
     return `${meta.label} · ${u.name}`;
   }
-  return meta.label;
+  return (meta && meta.label) || roleKey;
 }
 
 function getRoleIconSvg(role) {
@@ -3665,37 +3880,154 @@ function renderMechanicJobCard(job, mechDisplayName) {
 }
 
 /**
+ * Builds HTML for dashboard KPI summary cards.
+ * When showRevenue is false, renders 3 cards (Service Status, Pending Payments, Today's Services)
+ * with class "stats mdash-stats" and never evaluates or includes revenue data.
+ * When showRevenue is true, renders 4 cards including Today's Revenue with class "stats dash-kpi-4col".
+ * @param {number} actCount
+ * @param {number} pendingCount
+ * @param {number} dnCount
+ * @param {Object|null} [revData=null]
+ * @param {Object} [options={}]
+ * @param {boolean} [options.showRevenue=true]
+ * @returns {string} HTML string.
+ */
+function getDashStatCardsHtml(actCount, pendingCount, dnCount, revData = null, options = {}) {
+  const { showRevenue = true } = options;
+  const stat = (i, bg, l, n, t) =>
+    `<div class="card st"><div class="ic" style="background:${bg}">${i}</div><div><small>${l}</small><b>${n}</b>${t}</div></div>`;
+
+  if (!showRevenue || !revData) {
+    return `
+      <!-- KPI Row (3 columns on wide desktop, 2 on tablet, 1 on mobile) -->
+      <div class="stats mdash-stats">
+        ${stat(LINE_ICONS.rep, "", "Service Status", actCount, "In progress")}
+        ${stat(ICONS.money, "", "PENDING PAYMENTS", pendingCount, "Ready for pickup")}
+        ${stat(ICONS.checkCircle, "", "TODAY’S SERVICES", dnCount, "Jobs finished")}
+      </div>
+    `;
+  }
+
+  return `
+      <!-- KPI Row (4 columns on wide desktop, 2 on tablet, 1 on mobile) -->
+      <div class="stats dash-kpi-4col">
+        ${stat(LINE_ICONS.rep, "", "Service Status", actCount, "In progress")}
+        ${stat(ICONS.money, "", "PENDING PAYMENTS", pendingCount, "Ready for pickup")}
+        ${stat(ICONS.checkCircle, "", "TODAY’S SERVICES", dnCount, "Jobs finished")}
+        ${stat(
+          ICONS.money,
+          "",
+          "TODAY’S REVENUE",
+          P(revData.revenue),
+          `<div class="dash-rev-sub">Labor ${P(revData.labor)} · Parts &amp; Fluids ${P(revData.parts)}</div>`
+        )}
+      </div>
+  `;
+}
+
+/**
+ * Builds HTML for dashboard Quick Actions bar.
+ * Reads permission matrix with canOpen() and hides "Assign Mechanic" for the Mechanic role.
+ * Hidden tiles leave no empty cells thanks to responsive grid reflow.
+ * @param {number} unassignedCount
+ * @param {number} awaitingCount
+ * @param {Object} [options={}]
+ * @param {boolean} [options.isMechanic=false]
+ * @returns {string} HTML string.
+ */
+function getDashQuickActionsHtml(unassignedCount, awaitingCount, options = {}) {
+  const { isMechanic = false } = options;
+  const canAssign = canOpen("rep") && !isMechanic;
+
+  return `
+      <!-- Quick Actions Bar (replaces lone Service Status square) -->
+      <div class="dash-quick-actions${isMechanic ? " mdash-tiles" : ""}" role="region" aria-label="Quick Actions">
+        ${canOpen("insp") ? `
+          <button
+            type="button"
+            class="dash-qa-btn"
+            onclick="go('insp')"
+            aria-label="New Service Intake: Walk-in motorcycle"
+          >
+            <div class="dash-qa-icon">${LINE_ICONS.insp}</div>
+            <div class="dash-qa-text">
+              <div class="dash-qa-label">New Service Intake</div>
+              <div class="dash-qa-hint">Walk-in motorcycle</div>
+            </div>
+          </button>
+        ` : ""}
+        ${canOpen("pos") ? `
+          <button
+            type="button"
+            class="dash-qa-btn"
+            onclick="posView='parts';go('pos')"
+            aria-label="Quick POS Sale: Parts &amp; fluids"
+          >
+            <div class="dash-qa-icon">${LINE_ICONS.pos}</div>
+            <div class="dash-qa-text">
+              <div class="dash-qa-label">Quick POS Sale</div>
+              <div class="dash-qa-hint">Parts &amp; fluids</div>
+            </div>
+          </button>
+        ` : ""}
+        ${canAssign ? `
+          <button
+            type="button"
+            class="dash-qa-btn"
+            onclick="repStatusFilter='all';go('rep')"
+            aria-label="Assign Mechanic: ${unassignedCount} unassigned jobs"
+          >
+            <div class="dash-qa-icon">${LINE_ICONS.rep}</div>
+            <div class="dash-qa-text">
+              <div class="dash-qa-label">Assign Mechanic</div>
+              <div class="dash-qa-hint">Unassigned jobs <span class="dash-qa-count">(${unassignedCount})</span></div>
+            </div>
+          </button>
+        ` : ""}
+        ${canOpen("rep") ? `
+          <button
+            type="button"
+            class="dash-qa-btn"
+            onclick="repStatusFilter='awaiting';go('rep')"
+            aria-label="Pending Approvals / Parts: ${awaitingCount} awaiting parts or approval"
+          >
+            <div class="dash-qa-icon">${ICONS.alert || LINE_ICONS.cat}</div>
+            <div class="dash-qa-text">
+              <div class="dash-qa-label">Pending Approvals / Parts</div>
+              <div class="dash-qa-hint">Awaiting parts or approval <span class="dash-qa-count">(${awaitingCount})</span></div>
+            </div>
+          </button>
+        ` : ""}
+      </div>
+  `;
+}
+
+/**
  * Renders the dedicated Mechanic Dashboard view.
- * Features greeting, 3 mechanic KPI cards (Service Status, Awaiting Parts, Done Today), and My Jobs card.
- * Excludes revenue, pending settlement, and links to inaccessible pages.
+ * Features greeting, 3 shop KPI cards (Service Status, Pending Payments, Today's Services),
+ * 3 Quick Action tiles, and My Jobs card.
+ * Excludes revenue, labor/parts financials, and unassigned mechanic action.
  * @returns {string} HTML string.
  */
 function dashMechanic() {
   const u = getCurrentUser();
   const mechName = u ? (u.name || "").trim() : "";
-  const isMyJob = (o) => {
-    return Boolean(o.mech && o.mech.trim().toLowerCase() === mechName.toLowerCase());
-  };
 
-  // 1. Service Status: all open jobs, not Completed, Cancelled, or Ready for Pickup
-  const openJobs = D.wo.filter((o) => o.st !== "Completed" && o.st !== "Cancelled" && !o.cancel && o.st !== "Ready for Pickup");
+  const countableWos = (Array.isArray(D.wo) ? D.wo : []).filter(isCountableJob);
+  // Active jobs: work orders not yet completed or ready for pickup
+  const act = countableWos.filter((o) => o.st != "Completed" && o.st != "Ready for Pickup");
+  // Ready jobs / pending settlement: work orders awaiting customer settlement and vehicle pickup
+  const pendingPaymentJobs = countableWos.filter((o) => o.st == "Ready for Pickup");
+  // Services finished today: work orders with done date matching today
+  const dn = countableWos.filter((o) => (o.done || "").slice(0, 10) == today());
 
-  // 2. AWAITING PARTS: all jobs with status "Awaiting Parts/Approval"
-  const awaitingPartsJobs = D.wo.filter((o) => o.st === "Awaiting Parts/Approval" && !o.cancel);
+  const unassignedCount = Array.isArray(REP_STATIC_CARDS)
+    ? REP_STATIC_CARDS.filter((c) => c.filter === "waiting" || c.markedBy === "—").length
+    : countableWos.filter((o) => o.st !== "Completed" && o.st !== "Cancelled" && o.st !== "Ready for Pickup" && (!o.mech || o.mech === "Unassigned" || o.mech.trim() === "")).length;
 
-  // 3. DONE TODAY: jobs where this mechanic's name is wo.mech and wo.doneAt or status change to Ready for Pickup or Completed is today
-  const todayStr = today();
-  const doneTodayJobs = D.wo.filter((o) => {
-    if (!isCountableJob(o)) return false;
-    if (!isMyJob(o)) return false;
-    const isReadyOrDone = o.st === "Ready for Pickup" || o.st === "Completed";
-    if (!isReadyOrDone) return false;
-    const dateMatch = (o.doneAt && o.doneAt.slice(0, 10) === todayStr) ||
-                      (o.readyAt && o.readyAt.slice(0, 10) === todayStr) ||
-                      (o.done && o.done.slice(0, 10) === todayStr) ||
-                      (o.at && o.at === todayStr && o.st === "Ready for Pickup");
-    return Boolean(dateMatch);
-  });
+  const awaitingCount = Array.isArray(REP_STATIC_CARDS)
+    ? REP_STATIC_CARDS.filter((c) => c.filter === "awaiting").length
+    : countableWos.filter((o) => o.st === "Awaiting Parts/Approval" && !o.cancel).length;
 
   const d = new Date().toLocaleDateString("en-US", {
     weekday: "long",
@@ -3703,9 +4035,6 @@ function dashMechanic() {
     month: "long",
     day: "numeric"
   });
-
-  const stat = (i, bg, l, n, t) =>
-    `<div class="card st"><div class="ic" style="background:${bg}">${i}</div><div><small>${l}</small><b>${Number(n) || 0}</b>${t}</div></div>`;
 
   return `
     <div class="card top">
@@ -3716,11 +4045,9 @@ function dashMechanic() {
       <span class="pill">● Saved on this device</span>
     </div>
 
-    <div class="stats">
-      ${stat(LINE_ICONS.rep, "", "Service Status", openJobs.length, "All open repair jobs")}
-      ${stat(LINE_ICONS.cat, "", "AWAITING PARTS", awaitingPartsJobs.length, "Waiting for parts or approval")}
-      ${stat(ICONS.checkCircle, "", "DONE TODAY", doneTodayJobs.length, "Finished by you")}
-    </div>
+    ${getDashStatCardsHtml(act.length, pendingPaymentJobs.length, dn.length, null, { showRevenue: false })}
+
+    ${getDashQuickActionsHtml(unassignedCount, awaitingCount, { isMechanic: true })}
 
     <div style="display:flex;flex-direction:column;gap:20px">
       <!-- My Jobs Card -->
@@ -4980,87 +5307,14 @@ const R = {
       day: "numeric"
     });
 
-    const stat = (i, bg, l, n, t) =>
-      `<div class="card st"><div class="ic" style="background:${bg}">${i}</div><div><small>${l}</small><b>${n}</b>${t}</div></div>`;
-
     const roleLabel = u ? (ROLES[u.activeRole]?.label || u.activeRole) : "Admin";
 
     return `
       <div class="card top"><div><h1>Welcome back</h1><p>${roleLabel} | ${d}</p></div><span class="pill">● Saved on this device</span></div>
 
-      <!-- KPI Row (4 columns on wide desktop, 2 on tablet, 1 on mobile) -->
-      <div class="stats dash-kpi-4col">
-        ${stat(LINE_ICONS.rep, "", "Service Status", act.length, "In progress")}
-        ${stat(ICONS.money, "", "PENDING PAYMENTS", pendingPaymentJobs.length, "Ready for pickup")}
-        ${stat(ICONS.checkCircle, "", "TODAY’S SERVICES", dn.length, "Jobs finished")}
-        ${stat(
-          ICONS.money,
-          "",
-          "TODAY’S REVENUE",
-          P(revData.revenue),
-          `<div class="dash-rev-sub">Labor ${P(revData.labor)} · Parts &amp; Fluids ${P(revData.parts)}</div>`
-        )}
-      </div>
+      ${getDashStatCardsHtml(act.length, pendingPaymentJobs.length, dn.length, revData, { showRevenue: true })}
 
-      <!-- Quick Actions Bar (replaces lone Service Status square) -->
-      <div class="dash-quick-actions" role="region" aria-label="Quick Actions">
-        ${canOpen("insp") ? `
-          <button
-            type="button"
-            class="dash-qa-btn"
-            onclick="go('insp')"
-            aria-label="New Service Intake: Walk-in motorcycle"
-          >
-            <div class="dash-qa-icon">${LINE_ICONS.insp}</div>
-            <div class="dash-qa-text">
-              <div class="dash-qa-label">New Service Intake</div>
-              <div class="dash-qa-hint">Walk-in motorcycle</div>
-            </div>
-          </button>
-        ` : ""}
-        ${canOpen("pos") ? `
-          <button
-            type="button"
-            class="dash-qa-btn"
-            onclick="posView='parts';go('pos')"
-            aria-label="Quick POS Sale: Parts &amp; fluids"
-          >
-            <div class="dash-qa-icon">${LINE_ICONS.pos}</div>
-            <div class="dash-qa-text">
-              <div class="dash-qa-label">Quick POS Sale</div>
-              <div class="dash-qa-hint">Parts &amp; fluids</div>
-            </div>
-          </button>
-        ` : ""}
-        ${canOpen("rep") ? `
-          <button
-            type="button"
-            class="dash-qa-btn"
-            onclick="repStatusFilter='all';go('rep')"
-            aria-label="Assign Mechanic: ${unassignedCount} unassigned jobs"
-          >
-            <div class="dash-qa-icon">${LINE_ICONS.rep}</div>
-            <div class="dash-qa-text">
-              <div class="dash-qa-label">Assign Mechanic</div>
-              <div class="dash-qa-hint">Unassigned jobs <span class="dash-qa-count">(${unassignedCount})</span></div>
-            </div>
-          </button>
-        ` : ""}
-        ${canOpen("rep") ? `
-          <button
-            type="button"
-            class="dash-qa-btn"
-            onclick="repStatusFilter='awaiting';go('rep')"
-            aria-label="Pending Approvals / Parts: ${awaitingCount} awaiting parts or approval"
-          >
-            <div class="dash-qa-icon">${ICONS.alert || LINE_ICONS.cat}</div>
-            <div class="dash-qa-text">
-              <div class="dash-qa-label">Pending Approvals / Parts</div>
-              <div class="dash-qa-hint">Awaiting parts or approval <span class="dash-qa-count">(${awaitingCount})</span></div>
-            </div>
-          </button>
-        ` : ""}
-      </div>
+      ${getDashQuickActionsHtml(unassignedCount, awaitingCount, { isMechanic: false })}
 
       <!-- Middle Row: Attention Required & Mechanic Floor Status (2 columns desktop, 1 mobile) -->
       <div class="dash-grid-2col">
@@ -6312,6 +6566,10 @@ function saveEditCustomer(cid) {
     }
     return;
   }
+  const oldPhone = c.phone || "";
+  if (phone !== oldPhone) {
+    logAuditEvent("Customers", "Contact number edited", c.name, `${oldPhone || "-"} \u2192 ${phone || "-"}`);
+  }
   c.name = name;
   c.phone = phone;
   save();
@@ -6337,6 +6595,7 @@ function deleteCustomer(cid) {
   }
 
   askReason(`Delete Customer "${c.name}"`, "Delete Customer", (reason) => {
+    logAuditEvent("Customers", "Customer deleted", c.name, `Deleted ${c.name} (0 service records)`);
     D.cu = (D.cu || []).filter((x) => x.id !== cid);
     D.bk = (D.bk || []).filter((x) => x.cid !== cid);
     save();
@@ -6480,12 +6739,14 @@ function saveEditBike(bid) {
       cm();
       askReason(`Edit Locked Plate ${oldPlate} → ${newPlate}`, "Confirm Plate Change", (reason) => {
         b.plate = newPlate;
+        logAuditEvent("Customers", "Plate number edited", newPlate, `${oldPlate} \u2192 ${newPlate}`);
         save();
         go("cust");
       });
       return;
     } else {
       b.plate = newPlate;
+      logAuditEvent("Customers", "Plate number edited", newPlate, `${oldPlate} \u2192 ${newPlate}`);
     }
   }
 
@@ -6511,6 +6772,7 @@ function deleteBike(bid) {
     return;
   }
   askReason(`Delete Motorcycle ${b.plate}`, "Delete", (reason) => {
+    logAuditEvent("Customers", "Motorcycle deleted", b.plate, `Deleted ${b.plate} (0 service records)`);
     D.bk = (D.bk || []).filter((x) => x.id !== b.id);
     save();
     cm();
@@ -7560,6 +7822,15 @@ function submitItemAddForm(context, targetKey = "items") {
   list.push(newItem);
 
   if (context !== "draft") {
+    const o = g("wo", context);
+    if (o) {
+      const isPastApproval = o.st !== "Queued" && o.st !== "Diagnosing" && o.st !== "Awaiting Parts/Approval";
+      if (isPastApproval) {
+        const lineTotal = (newItem.qty || 1) * (newItem.price || 0);
+        const joRef = getJobNumber(o) || o.id;
+        logAuditEvent("Service", "Line item added", joRef, `Added after approval: ${newItem.name} x${newItem.qty} (${P(lineTotal)})`);
+      }
+    }
     save();
   }
 
@@ -7618,8 +7889,18 @@ function removeItemRow(context, itemId) {
   if (context !== "draft") {
     const o = g("wo", context);
     if (o) {
+      let targetItem = (o.items || []).find((x) => x.id === itemId);
+      if (!targetItem && Array.isArray(o.extra)) {
+        targetItem = o.extra.find((x) => x.id === itemId);
+      }
       if (Array.isArray(o.items)) o.items = o.items.filter((x) => x.id !== itemId);
       if (Array.isArray(o.extra)) o.extra = o.extra.filter((x) => x.id !== itemId);
+      const isPastApproval = o.st !== "Queued" && o.st !== "Diagnosing" && o.st !== "Awaiting Parts/Approval";
+      if (isPastApproval && targetItem) {
+        const lineTotal = (targetItem.qty || 1) * (targetItem.price || 0);
+        const joRef = getJobNumber(o) || o.id;
+        logAuditEvent("Service", "Line item removed", joRef, `Removed after approval: ${targetItem.name} x${targetItem.qty || 1} (${P(lineTotal)})`);
+      }
       save();
     }
   }
@@ -9209,15 +9490,738 @@ function getUsersViewHtml() {
 let reportPeriod = "month";
 
 /**
- * Filter change handler for report period. In the demo, period selection is display-only.
+ * Filter change handler for report period. Dynamically re-renders the report results
+ * container so all charts and lists update without losing focus on the period selector
+ * or jumping page scroll.
  * @param {string} [period]
  */
 function setReportPeriod(period) {
   if (period) reportPeriod = period;
+  const wrap = $("report-results-wrap");
+  if (wrap) {
+    wrap.innerHTML = getReportResultsHtml();
+  }
 }
 
 /**
- * Builds HTML for report KPI cards and tables showing static values for "This Month".
+ * Computes staff revenue and completed jobs breakdown for selected report period.
+ * Excludes cancelled, reversed, and deleted jobs.
+ * Slices are capped at 5: top 4 staff + "Other" (if > 4).
+ * Staff with 0 revenue are placed in unrecorded/footnote.
+ * @param {string} [period=reportPeriod]
+ * @returns {{ slices: Array<{ name: string, jobs: number, revenue: number, pct: number, color: string }>, unrecorded: { jobs: number, revenue: number }, totalRevenue: number }}
+ */
+function getStaffPerformance(period = reportPeriod) {
+  const countableWos = (Array.isArray(D.wo) ? D.wo : []).filter((o) => {
+    if (!isCountableJob(o)) return false;
+    if (o.st !== "Completed") return false;
+    if (o.cancel || o.cancelled || o.reversed || o.deleted || o.isDeleted) return false;
+    const jobDate = (o.done || (o.pay && o.pay.paidAt) || o.at || o.date || "").slice(0, 10);
+    return isEntryInPeriod(jobDate, period);
+  });
+
+  const staffMap = new Map();
+  let unrecordedJobs = 0;
+  let unrecordedRevenue = 0;
+
+  countableWos.forEach((o) => {
+    const rawMech = typeof o.mech === "string" ? o.mech.trim() : "";
+    const rev = (o.pay && typeof o.pay.amount === "number") ? o.pay.amount : getOrderTotals(o).total;
+    if (!rawMech || rawMech.toLowerCase() === "not recorded" || rawMech.toLowerCase() === "unassigned") {
+      unrecordedJobs += 1;
+      unrecordedRevenue += rev;
+      return;
+    }
+    if (!staffMap.has(rawMech)) {
+      staffMap.set(rawMech, { name: rawMech, jobs: 0, revenue: 0 });
+    }
+    const entry = staffMap.get(rawMech);
+    entry.jobs += 1;
+    entry.revenue += rev;
+  });
+
+  let totalRevenue = 0;
+  staffMap.forEach((s) => {
+    totalRevenue += s.revenue;
+  });
+  totalRevenue += unrecordedRevenue;
+
+  const activeStaff = [];
+  staffMap.forEach((s) => {
+    if (s.revenue > 0) {
+      activeStaff.push(s);
+    } else {
+      unrecordedJobs += s.jobs;
+    }
+  });
+  activeStaff.sort((a, b) => b.revenue - a.revenue || a.name.localeCompare(b.name));
+
+  const sliceColors = [
+    "var(--chart-1)",
+    "var(--chart-2)",
+    "var(--chart-3)",
+    "var(--chart-4)"
+  ];
+
+  let slices = [];
+  if (activeStaff.length <= 4) {
+    slices = activeStaff.map((s, idx) => ({
+      name: s.name,
+      jobs: s.jobs,
+      revenue: s.revenue,
+      pct: totalRevenue > 0 ? Math.round((s.revenue / totalRevenue) * 100) : 0,
+      color: sliceColors[idx] || "var(--chart-other)"
+    }));
+  } else {
+    for (let i = 0; i < 4; i++) {
+      const s = activeStaff[i];
+      slices.push({
+        name: s.name,
+        jobs: s.jobs,
+        revenue: s.revenue,
+        pct: totalRevenue > 0 ? Math.round((s.revenue / totalRevenue) * 100) : 0,
+        color: sliceColors[i]
+      });
+    }
+    let otherJobs = 0;
+    let otherRevenue = 0;
+    for (let i = 4; i < activeStaff.length; i++) {
+      otherJobs += activeStaff[i].jobs;
+      otherRevenue += activeStaff[i].revenue;
+    }
+    slices.push({
+      name: "Other",
+      jobs: otherJobs,
+      revenue: otherRevenue,
+      pct: totalRevenue > 0 ? Math.round((otherRevenue / totalRevenue) * 100) : 0,
+      color: "var(--chart-other)"
+    });
+  }
+
+  return {
+    slices,
+    unrecorded: {
+      jobs: unrecordedJobs,
+      revenue: unrecordedRevenue
+    },
+    totalRevenue
+  };
+}
+
+/**
+ * Builds HTML for the Staff Performance card:
+ * Left: Donut chart showing revenue share per staff member with center total.
+ * Right: Compact breakdown table with matching colored dots.
+ * Footnote: Unrecorded staff with 0 jobs and ₱0.
+ * @returns {string} HTML string.
+ */
+function renderStaffPerformanceCard() {
+  const data = getStaffPerformance(reportPeriod);
+  const { slices, unrecorded, totalRevenue } = data;
+
+  let donutSvgHtml = "";
+  if (totalRevenue === 0 || !slices.length) {
+    donutSvgHtml = `
+      <div class="rpt-donut-wrap">
+        <svg viewBox="0 0 160 160" width="160" height="160" class="rpt-donut-svg" role="img" aria-label="No revenue in this period">
+          <circle cx="80" cy="80" r="54" fill="none" stroke="var(--chart-other)" stroke-width="16"></circle>
+          <text x="80" y="74" text-anchor="middle" font-size="16" font-weight="700" fill="var(--text)">₱0</text>
+          <text x="80" y="89" text-anchor="middle" font-size="10" font-weight="600" fill="var(--text-muted)">
+            <tspan x="80" dy="0">No revenue in</tspan>
+            <tspan x="80" dy="12">this period</tspan>
+          </text>
+        </svg>
+      </div>
+    `;
+  } else {
+    const C = 2 * Math.PI * 54;
+    let accumulatedOffset = 0;
+    const sliceCircles = slices.map((s) => {
+      const share = totalRevenue > 0 ? (s.revenue / totalRevenue) : 0;
+      const dash = share * C;
+      const gap = C - dash;
+      const offset = accumulatedOffset;
+      accumulatedOffset += dash;
+      const safeName = escHtml(s.name);
+      const safeRev = "₱" + Math.round(s.revenue).toLocaleString();
+      const tooltip = `${safeName}: ${safeRev} (${s.pct}%)`;
+      return `<circle cx="80" cy="80" r="54" fill="none" stroke="${s.color}" stroke-width="16" stroke-dasharray="${dash.toFixed(2)} ${gap.toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}" transform="rotate(-90 80 80)"><title>${tooltip}</title></circle>`;
+    }).join("");
+
+    const ariaDesc = "Staff revenue share: " + slices.map((s) => `${s.name} ${s.pct}%`).join(", ");
+
+    donutSvgHtml = `
+      <div class="rpt-donut-wrap">
+        <svg viewBox="0 0 160 160" width="160" height="160" class="rpt-donut-svg" role="img" aria-label="${escHtml(ariaDesc)}">
+          ${sliceCircles}
+          <text x="80" y="76" text-anchor="middle" font-size="15" font-weight="700" fill="var(--text)">₱${Math.round(totalRevenue).toLocaleString()}</text>
+          <text x="80" y="93" text-anchor="middle" font-size="11" font-weight="600" fill="var(--text-muted)">Total</text>
+        </svg>
+      </div>
+    `;
+  }
+
+  let tableRowsHtml = "";
+  if (!slices.length) {
+    tableRowsHtml = `<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:24px 0">No revenue in this period</td></tr>`;
+  } else {
+    tableRowsHtml = slices.map((s) => `
+      <tr>
+        <td>
+          <span class="rpt-staff-cell">
+            <span class="rpt-dot" style="background:${s.color}"></span>
+            <b>${escHtml(s.name)}</b>
+          </span>
+        </td>
+        <td class="r" style="font-weight:600">${s.jobs}</td>
+        <td class="r" style="font-weight:700">₱${Math.round(s.revenue).toLocaleString()}</td>
+      </tr>
+    `).join("");
+  }
+
+  const footnoteHtml = `
+    <div class="rpt-footnote">
+      Not recorded: ${unrecorded.jobs} jobs · ₱${Math.round(unrecorded.revenue).toLocaleString()}
+    </div>
+  `;
+
+  return `
+    <div class="card reports-grid-wide">
+      <div class="hd" style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+        <span>${LINE_ICONS.rep}</span>
+        <span>Staff Performance</span>
+      </div>
+      <div class="rpt-staff-split">
+        <div class="rpt-staff-left">
+          ${donutSvgHtml}
+        </div>
+        <div class="rpt-staff-right tw">
+          <table class="rpt-table">
+            <thead>
+              <tr>
+                <th>Staff</th>
+                <th class="r">Jobs</th>
+                <th class="r">Revenue</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRowsHtml}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      ${footnoteHtml}
+    </div>
+  `;
+}
+
+/**
+ * Computes the top 5 most performed labor services for selected report period.
+ * Aggregates countable completed repair jobs and quick labor records.
+ * Excludes cancelled, voided, reversed records.
+ * @param {string} [period=reportPeriod]
+ * @returns {Array<{ name: string, count: number, revenue: number }>}
+ */
+function getMostLaborDone(period = reportPeriod) {
+  const map = new Map();
+
+  function recordLabor(name, rev = 0) {
+    if (!name || typeof name !== "string") return;
+    const cleanName = name.trim();
+    if (!cleanName) return;
+    if (!map.has(cleanName)) {
+      map.set(cleanName, { name: cleanName, count: 0, revenue: 0 });
+    }
+    const entry = map.get(cleanName);
+    entry.count += 1;
+    entry.revenue += rev;
+  }
+
+  // 1. From completed countable work orders in period
+  const countableWos = (Array.isArray(D.wo) ? D.wo : []).filter((o) => {
+    if (!isCountableJob(o)) return false;
+    if (o.st !== "Completed") return false;
+    if (o.cancel || o.cancelled || o.reversed || o.deleted || o.isDeleted) return false;
+    const jobDate = (o.done || (o.pay && o.pay.paidAt) || o.at || o.date || "").slice(0, 10);
+    return isEntryInPeriod(jobDate, period);
+  });
+
+  const svCatalog = Array.isArray(D.sv) ? D.sv : [];
+  const svById = new Map();
+  svCatalog.forEach((s) => {
+    if (s && s.id) svById.set(s.id, s);
+  });
+
+  countableWos.forEach((o) => {
+    if (Array.isArray(o.sv)) {
+      o.sv.forEach((svItem) => {
+        if (!svItem) return;
+        if (typeof svItem === "string") {
+          const cat = svById.get(svItem);
+          const name = cat ? cat.name : svItem;
+          const laborRev = cat ? (Number(cat.labor) || 0) : 0;
+          recordLabor(name, laborRev);
+        } else if (typeof svItem === "object") {
+          recordLabor(svItem.name || svItem.id, Number(svItem.labor || svItem.a) || 0);
+        }
+      });
+    }
+
+    const lineItems = [...(Array.isArray(o.items) ? o.items : []), ...(Array.isArray(o.extra) ? o.extra : [])];
+    lineItems.forEach((it) => {
+      if (!it) return;
+      if (it.kind === "labor") {
+        recordLabor(it.name || "Custom labor", Number(it.a || it.price) || 0);
+      }
+    });
+  });
+
+  // 2. From Quick Labor in D.sales (excluding voided/cancelled/refunded)
+  const sales = Array.isArray(D.sales) ? D.sales : [];
+  sales.forEach((s) => {
+    if (!s) return;
+    const isVoided = Boolean(
+      s.voided || s.isVoided || s.st === "Voided" || s.st === "Cancelled" ||
+      s.refunded || s.isRefunded || s.st === "Refunded"
+    );
+    if (isVoided) return;
+    const isLabor = s.type === "QUICK LABOR" || s.type === "Labor" || Boolean(s.isLabor);
+    if (!isLabor) return;
+
+    const saleDate = (s.at || s.date || "").slice(0, 10);
+    if (!isEntryInPeriod(saleDate, period)) return;
+
+    if (s.serviceName) {
+      recordLabor(s.serviceName, Number(s.laborSubtotal || s.amount || s.total) || 0);
+    }
+    const items = Array.isArray(s.items) ? s.items : (Array.isArray(s.lines) ? s.lines : []);
+    items.forEach((it) => {
+      if (it && it.kind === "labor") {
+        recordLabor(it.name || "Labor", Number(it.price || it.a) || 0);
+      }
+    });
+  });
+
+  const list = [];
+  map.forEach((entry) => {
+    if (entry.count > 0) {
+      list.push(entry);
+    }
+  });
+
+  list.sort((a, b) => b.count - a.count || b.revenue - a.revenue || a.name.localeCompare(b.name));
+  return list.slice(0, 5);
+}
+
+/**
+ * Builds HTML for the Most Labor Done horizontal bar chart card (Row 2 Left).
+ * Bars use --chart-1 (#2563EB) and display the count on the right.
+ * @returns {string} HTML string.
+ */
+function renderMostLaborDoneCard() {
+  const laborList = getMostLaborDone(reportPeriod);
+  const headerHtml = `
+    <div class="hd" style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+      <span>${LINE_ICONS.rep}</span>
+      <span>Most Labor Done</span>
+    </div>
+  `;
+
+  if (!laborList.length) {
+    return `
+      <div class="card">
+        ${headerHtml}
+        <div class="empty rpt-empty">No data for this period.</div>
+      </div>
+    `;
+  }
+
+  const maxVal = Math.max(1, laborList[0].count);
+  const rowsHtml = laborList.map((item) => {
+    const pct = Math.max(4, Math.round((item.count / maxVal) * 100));
+    const safeName = escHtml(item.name);
+    return `
+      <div class="rpt-bar-row">
+        <div class="rpt-bar-label" title="${safeName}">${safeName}</div>
+        <div class="rpt-bar-track">
+          <div class="rpt-bar-fill rpt-bar-fill-labor" style="width:${pct}%"></div>
+        </div>
+        <div class="rpt-bar-val">${item.count}</div>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <div class="card">
+      ${headerHtml}
+      <div class="rpt-bar-list">
+        ${rowsHtml}
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Computes and returns the top most used spare parts in the shop for selected period.
+ * Allocated: parts allocated on non-cancelled repair jobs within the period.
+ * Sold: parts sold in Quick Sales & Quick Labor within the period (excludes repair billing).
+ * Excludes labor lines, custom/non-catalog items, and voided/refunded sales.
+ * @param {string} [period=reportPeriod]
+ * @returns {Array<{id: string, name: string, allocated: number, sold: number, total: number}>}
+ */
+function getMostUsedParts(period = reportPeriod) {
+  const catalogParts = Array.isArray(D.pt) ? D.pt : [];
+  const partById = new Map();
+  const partByName = new Map();
+  catalogParts.forEach((p) => {
+    if (p && p.id) partById.set(p.id, p);
+    if (p && p.name) partByName.set(p.name.trim().toLowerCase(), p);
+  });
+
+  const map = new Map();
+
+  function getOrCreateEntry(partId, partName) {
+    let catPart = (partId && partById.get(partId)) || (partName && partByName.get(partName.trim().toLowerCase()));
+    let key = catPart ? catPart.id : (partId ? partId : null);
+    let name = catPart ? catPart.name : (partName || "Unnamed part");
+    if (!key) return null;
+    if (!catPart && !partId) return null;
+    if (!map.has(key)) {
+      map.set(key, {
+        id: key,
+        name: name,
+        allocated: 0,
+        sold: 0,
+        total: 0
+      });
+    }
+    return map.get(key);
+  }
+
+  // 1. ALLOCATED: non-cancelled repair jobs whose date is inside selected period
+  const countableWos = (Array.isArray(D.wo) ? D.wo : []).filter((o) => {
+    if (!isCountableJob(o)) return false;
+    if (o.st === "Cancelled" || o.cancel || o.cancelled || o.reversed || o.deleted || o.isDeleted) return false;
+    const jobDate = (o.at || o.date || "").slice(0, 10);
+    return isEntryInPeriod(jobDate, period);
+  });
+
+  countableWos.forEach((o) => {
+    const lineItems = [...(Array.isArray(o.items) ? o.items : []), ...(Array.isArray(o.extra) ? o.extra : [])];
+    lineItems.forEach((it) => {
+      if (!it) return;
+      if (it.kind !== "part") return;
+      if (it.src === "own") return;
+      if (it.custom || it.isCustom || it.kind === "custom") return;
+
+      const qty = Math.max(0, parseInt(it.qty, 10) || 0);
+      if (qty <= 0) return;
+
+      const entry = getOrCreateEntry(it.partId || it.catalogId || it.id, it.name);
+      if (entry) {
+        entry.allocated += qty;
+      }
+    });
+
+    // Also include catalog parts from services on work orders (e.g. seed jobs)
+    if ((!lineItems.length || lineItems.length === 0) && Array.isArray(o.sv)) {
+      o.sv.forEach((svItem) => {
+        const s = (typeof svItem === "string") ? (typeof g === "function" ? g("sv", svItem) : null) : svItem;
+        if (s && Array.isArray(s.parts)) {
+          s.parts.forEach((pId) => {
+            const entry = getOrCreateEntry(pId, null);
+            if (entry) {
+              entry.allocated += 1;
+            }
+          });
+        }
+      });
+    }
+  });
+
+  // 2. SOLD: Quick Sales and Quick Labor sales in period (excluding voided/refunded & repair billing)
+  const sales = Array.isArray(D.sales) ? D.sales : [];
+  sales.forEach((s) => {
+    if (!s) return;
+    const isVoidOrRefund = Boolean(
+      s.voided || s.isVoided || s.st === "Voided" || s.st === "Cancelled" ||
+      s.refunded || s.isRefunded || s.st === "Refunded"
+    );
+    if (isVoidOrRefund) return;
+    if (s.type === "REPAIR SERVICE" || s.isRepair || s.woId) return;
+
+    const saleDate = (s.at || s.date || "").slice(0, 10);
+    if (!isEntryInPeriod(saleDate, period)) return;
+
+    const items = Array.isArray(s.items) ? s.items : (Array.isArray(s.lines) ? s.lines : (Array.isArray(s.cart) ? s.cart : []));
+    items.forEach((it) => {
+      if (!it) return;
+      if (it.kind === "labor") return;
+      if (it.custom || it.isCustom || it.kind === "custom") return;
+
+      const qty = Math.max(0, parseInt(it.qty, 10) || 0);
+      if (qty <= 0) return;
+
+      const entry = getOrCreateEntry(it.partId || it.catalogId || it.id, it.name);
+      if (entry) {
+        entry.sold += qty;
+      }
+    });
+  });
+
+  // 3. Compute total and filter
+  const rows = [];
+  map.forEach((entry) => {
+    entry.total = entry.allocated + entry.sold;
+    if (entry.total > 0) {
+      rows.push(entry);
+    }
+  });
+
+  // 4. Sort: total descending, then allocated descending, then name ascending
+  rows.sort((a, b) => {
+    if (b.total !== a.total) return b.total - a.total;
+    if (b.allocated !== a.allocated) return b.allocated - a.allocated;
+    return a.name.localeCompare(b.name);
+  });
+
+  return rows.slice(0, 10);
+}
+
+/**
+ * Builds HTML for the Most Used Parts horizontal bar chart card (Row 2 Right).
+ * Bars use --chart-accent-2 (#6366F1) and display the count on the right.
+ * @returns {string} HTML string.
+ */
+function renderMostUsedPartsCard() {
+  const parts = getMostUsedParts(reportPeriod).slice(0, 5);
+  const headerHtml = `
+    <div class="hd" style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+      <span>${LINE_ICONS.cat}</span>
+      <span>Most Used Parts</span>
+    </div>
+  `;
+
+  if (!parts.length) {
+    return `
+      <div class="card">
+        ${headerHtml}
+        <div class="empty rpt-empty">No data for this period.</div>
+      </div>
+    `;
+  }
+
+  const maxVal = Math.max(1, parts[0].total);
+  const rowsHtml = parts.map((item) => {
+    const pct = Math.max(4, Math.round((item.total / maxVal) * 100));
+    const safeName = escHtml(item.name);
+    return `
+      <div class="rpt-bar-row">
+        <div class="rpt-bar-label" title="${safeName}">${safeName}</div>
+        <div class="rpt-bar-track">
+          <div class="rpt-bar-fill rpt-bar-fill-parts" style="width:${pct}%"></div>
+        </div>
+        <div class="rpt-bar-val">${item.total}</div>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <div class="card">
+      ${headerHtml}
+      <div class="rpt-bar-list">
+        ${rowsHtml}
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Computes the top 5 customer complaints from jobs in selected report period.
+ * Excludes cancelled, reversed, and deleted jobs.
+ * @param {string} [period=reportPeriod]
+ * @returns {Array<{ name: string, count: number }>}
+ */
+function getTopComplaints(period = reportPeriod) {
+  const map = new Map();
+  const jobs = (Array.isArray(D.wo) ? D.wo : []).filter((o) => {
+    if (!isCountableJob(o)) return false;
+    if (o.st === "Cancelled" || o.cancel || o.cancelled || o.reversed || o.deleted || o.isDeleted) return false;
+    const jobDate = (o.at || o.date || "").slice(0, 10);
+    return isEntryInPeriod(jobDate, period);
+  });
+
+  jobs.forEach((o) => {
+    if (Array.isArray(o.complaints)) {
+      o.complaints.forEach((c) => {
+        if (!c || typeof c !== "string") return;
+        const clean = c.trim();
+        if (!clean) return;
+        map.set(clean, (map.get(clean) || 0) + 1);
+      });
+    }
+  });
+
+  const list = [];
+  map.forEach((count, name) => {
+    list.push({ name, count });
+  });
+
+  list.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  return list.slice(0, 5);
+}
+
+/**
+ * Builds HTML for the Top Customer Complaints progress-bar list card (Row 3 Left).
+ * Each row has the complaint name, its count, and a soft light-blue fill bar (--chart-3).
+ * @returns {string} HTML string.
+ */
+function renderTopComplaintsCard() {
+  const complaints = getTopComplaints(reportPeriod);
+  const headerHtml = `
+    <div class="hd" style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+      <span>${ICONS.chat}</span>
+      <span>Top Customer Complaints</span>
+    </div>
+  `;
+
+  if (!complaints.length) {
+    return `
+      <div class="card">
+        ${headerHtml}
+        <div class="empty rpt-empty">No complaints recorded in this period.</div>
+      </div>
+    `;
+  }
+
+  const maxVal = Math.max(1, complaints[0].count);
+  const rowsHtml = complaints.map((item) => {
+    const pct = Math.max(4, Math.round((item.count / maxVal) * 100));
+    const safeName = escHtml(item.name);
+    return `
+      <div class="rpt-progress-row">
+        <div class="rpt-progress-labels">
+          <span class="rpt-progress-name" title="${safeName}">${safeName}</span>
+          <span class="rpt-progress-val">${item.count}</span>
+        </div>
+        <div class="rpt-progress-track">
+          <div class="rpt-progress-fill" style="width:${pct}%"></div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <div class="card">
+      ${headerHtml}
+      <div class="rpt-progress-list">
+        ${rowsHtml}
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Computes the top 5 OBD / ECU fault codes from jobs in selected report period.
+ * Excludes cancelled, reversed, and deleted jobs.
+ * @param {string} [period=reportPeriod]
+ * @returns {Array<{ code: string, desc: string, count: number }>}
+ */
+function getTopFaultCodes(period = reportPeriod) {
+  const map = new Map();
+  const jobs = (Array.isArray(D.wo) ? D.wo : []).filter((o) => {
+    if (!isCountableJob(o)) return false;
+    if (o.st === "Cancelled" || o.cancel || o.cancelled || o.reversed || o.deleted || o.isDeleted) return false;
+    const jobDate = (o.at || o.date || "").slice(0, 10);
+    return isEntryInPeriod(jobDate, period);
+  });
+
+  jobs.forEach((o) => {
+    const obd = o.inspection && o.inspection.obd;
+    const codes = (obd && Array.isArray(obd.codes)) ? obd.codes : (Array.isArray(o.obdCodes) ? o.obdCodes : []);
+    codes.forEach((item) => {
+      if (!item) return;
+      let codeStr = "";
+      let descStr = "";
+      if (typeof item === "string") {
+        codeStr = item.trim().toUpperCase();
+        const libMatch = (typeof findDtcInLibrary === "function") ? findDtcInLibrary(codeStr) : null;
+        if (libMatch && libMatch.entry && libMatch.entry.desc) {
+          descStr = libMatch.entry.desc;
+        }
+      } else if (typeof item === "object") {
+        codeStr = (item.code || "").trim().toUpperCase();
+        descStr = (typeof getDtcDisplayDesc === "function") ? getDtcDisplayDesc(item) : (item.desc || "");
+      }
+      if (!codeStr) return;
+      if (!map.has(codeStr)) {
+        map.set(codeStr, { code: codeStr, desc: descStr, count: 0 });
+      }
+      const entry = map.get(codeStr);
+      entry.count += 1;
+      if (!entry.desc && descStr) entry.desc = descStr;
+    });
+  });
+
+  const list = [];
+  map.forEach((entry) => {
+    list.push(entry);
+  });
+
+  list.sort((a, b) => b.count - a.count || a.code.localeCompare(b.code));
+  return list.slice(0, 5);
+}
+
+/**
+ * Builds HTML for the Most Frequent Fault Codes ranked list card (Row 3 Right).
+ * Each row shows rank number, the code, short description, and a neutral count pill badge.
+ * @returns {string} HTML string.
+ */
+function renderTopFaultCodesCard() {
+  const codes = getTopFaultCodes(reportPeriod);
+  const headerHtml = `
+    <div class="hd" style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+      <span>${LINE_ICONS.pos}</span>
+      <span>Most Frequent Fault Codes</span>
+    </div>
+  `;
+
+  if (!codes.length) {
+    return `
+      <div class="card">
+        ${headerHtml}
+        <div class="empty rpt-empty">No fault codes recorded in this period.</div>
+      </div>
+    `;
+  }
+
+  const rowsHtml = codes.map((item, idx) => {
+    const safeCode = escHtml(item.code);
+    const descHtml = item.desc ? `<span class="rpt-code-desc" title="${escHtml(item.desc)}">· ${escHtml(item.desc)}</span>` : "";
+    return `
+      <div class="rpt-ranked-row">
+        <div class="rpt-ranked-left">
+          <span class="rpt-rank-num">#${idx + 1}</span>
+          <span class="rpt-code-text">${safeCode}</span>
+          ${descHtml}
+        </div>
+        <span class="rpt-count-pill">${item.count}</span>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <div class="card">
+      ${headerHtml}
+      <div class="rpt-ranked-list">
+        ${rowsHtml}
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Builds HTML for report KPI cards and the 5 analytics chart/list cards.
  * @returns {string} HTML string.
  */
 function getReportResultsHtml() {
@@ -9236,135 +10240,18 @@ function getReportResultsHtml() {
       ${stat(LINE_ICONS.reports, "", "AVERAGE JOB VALUE", "₱1,087", "Per completed job")}
     </div>
 
-    <!-- Analytics Cards Grid -->
+    <!-- Analytics Cards Grid (Row 1: Staff Performance; Row 2: Most Labor Done & Most Used Parts; Row 3: Top Customer Complaints & Most Frequent Fault Codes) -->
     <div class="reports-grid">
-      <!-- Staff Performance -->
-      <div class="card reports-grid-wide">
-        <div class="hd" style="display:flex;align-items:center;gap:8px;margin-bottom:16px"><span>${LINE_ICONS.rep}</span><span>Staff Performance</span></div>
-        <div class="tw">
-          <table>
-            <thead>
-              <tr>
-                <th>Marked by</th>
-                <th>JOBS COMPLETED</th>
-                <th class="r">REVENUE</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><b>Larpus</b></td>
-                <td><b>2</b></td>
-                <td class="r" style="font-weight:700">₱2,110</td>
-              </tr>
-              <tr>
-                <td><b>Hiyo</b></td>
-                <td><b>1</b></td>
-                <td class="r" style="font-weight:700">₱1,150</td>
-              </tr>
-              <tr>
-                <td><b>Not recorded</b></td>
-                <td><b>0</b></td>
-                <td class="r" style="font-weight:700">₱0</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <!-- Row 1 (full width) -->
+      ${renderStaffPerformanceCard()}
 
-      <!-- Most Labor Done -->
-      <div class="card reports-grid-wide">
-        <div class="hd" style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
-          <span>${LINE_ICONS.rep}</span>
-          <span>Most Labor Done</span>
-        </div>
-        <div class="tw">
-          <table>
-            <thead>
-              <tr>
-                <th style="width:48px">#</th>
-                <th>SERVICE</th>
-                <th class="r" style="width:130px">TIMES DONE</th>
-                <th class="r" style="width:140px">REVENUE</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td style="color:var(--text-muted);font-weight:700">#1</td>
-                <td><b>Change oil</b></td>
-                <td class="r" style="font-weight:600">2</td>
-                <td class="r" style="font-weight:700">₱300</td>
-              </tr>
-              <tr>
-                <td style="color:var(--text-muted);font-weight:700">#2</td>
-                <td><b>Brake overhaul</b></td>
-                <td class="r" style="font-weight:600">1</td>
-                <td class="r" style="font-weight:700">₱500</td>
-              </tr>
-              <tr>
-                <td style="color:var(--text-muted);font-weight:700">#3</td>
-                <td><b>Tune-up</b></td>
-                <td class="r" style="font-weight:600">1</td>
-                <td class="r" style="font-weight:700">₱350</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <!-- Row 2 (2 columns desktop, 1 column mobile) -->
+      ${renderMostLaborDoneCard()}
+      ${renderMostUsedPartsCard()}
 
-      <!-- Top Customer Complaints -->
-      <div class="card">
-        <div class="hd" style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
-          <span>${ICONS.chat}</span>
-          <span>Top Customer Complaints</span>
-        </div>
-        <div class="tw">
-          <table>
-            <thead>
-              <tr>
-                <th style="width:48px">#</th>
-                <th>COMPLAINT</th>
-                <th class="r" style="width:90px">COUNT</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td style="color:var(--text-muted);font-weight:700">#1</td>
-                <td><b>Regular maintenance</b></td>
-                <td class="r" style="font-weight:700">6</td>
-              </tr>
-              <tr>
-                <td style="color:var(--text-muted);font-weight:700">#2</td>
-                <td><b>Brake problem</b></td>
-                <td class="r" style="font-weight:700">4</td>
-              </tr>
-              <tr>
-                <td style="color:var(--text-muted);font-weight:700">#3</td>
-                <td><b>Engine noise</b></td>
-                <td class="r" style="font-weight:700">3</td>
-              </tr>
-              <tr>
-                <td style="color:var(--text-muted);font-weight:700">#4</td>
-                <td><b>Hard to start</b></td>
-                <td class="r" style="font-weight:700">3</td>
-              </tr>
-              <tr>
-                <td style="color:var(--text-muted);font-weight:700">#5</td>
-                <td><b>Poor acceleration</b></td>
-                <td class="r" style="font-weight:700">3</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Most Frequent Fault Codes -->
-      <div class="card">
-        <div class="hd" style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
-          <span>${LINE_ICONS.pos}</span>
-          <span>Most Frequent Fault Codes</span>
-        </div>
-        <div class="empty">No fault codes recorded.</div>
-      </div>
+      <!-- Row 3 (2 columns desktop, 1 column mobile) -->
+      ${renderTopComplaintsCard()}
+      ${renderTopFaultCodesCard()}
     </div>
   `;
 }
@@ -9425,17 +10312,15 @@ let auditUser = "all";
 let auditPageLimit = 50;
 
 /**
- * Seeded sample audit entries (Login and Logout activity only, at most 8 rows).
+ * Backwards-compatible reference to audit entries.
  */
-const SAMPLE_AUDIT_ENTRIES = [
-  { at: "2026-11-17 08:30:12", by: "Super Admin", role: "superadmin", cat: "Sessions", action: "Login", ref: "—", note: "Signed in via demo accounts selector" },
-  { at: "2026-11-17 08:15:40", by: "Maria Santos", role: "admin", cat: "Sessions", action: "Logout", ref: "—", note: "Signed out of session" },
-  { at: "2026-11-17 07:45:22", by: "Maria Santos", role: "admin", cat: "Sessions", action: "Login", ref: "—", note: "Signed in via demo accounts selector" },
-  { at: "2026-11-16 18:02:15", by: "Larpus", role: "mechanic", cat: "Sessions", action: "Logout", ref: "—", note: "Shift completed; signed out" },
-  { at: "2026-11-16 13:00:08", by: "Larpus", role: "mechanic", cat: "Sessions", action: "Login", ref: "—", note: "Signed in via demo accounts selector" },
-  { at: "2026-11-16 12:45:30", by: "Hiyo", role: "mechanic", cat: "Sessions", action: "Logout", ref: "—", note: "Signed out of session" },
-  { at: "2026-11-16 08:00:19", by: "Hiyo", role: "mechanic", cat: "Sessions", action: "Login", ref: "—", note: "Signed in via demo accounts selector" }
-];
+const SAMPLE_AUDIT_ENTRIES = (typeof D !== "undefined" && D && Array.isArray(D.audit)) ? D.audit : [];
+
+/** Permitted audit categories per role */
+const AUDIT_ROLE_CATEGORIES = {
+  superadmin: ["Sessions", "POS & Billing", "Service", "Catalog", "Customers", "Security"],
+  admin: ["Sessions", "POS & Billing", "Service", "Customers"]
+};
 
 /**
  * Formats a timestamp into local date and time strings.
@@ -9477,6 +10362,134 @@ function formatAuditTime(atStr) {
 }
 
 /**
+ * Filters entry timestamp by selected period.
+ * @param {string} entryAt
+ * @param {string} period
+ * @returns {boolean}
+ */
+function isEntryInPeriod(entryAt, period) {
+  if (period === "all" || !period) return true;
+  if (!entryAt) return true;
+  const dTokens = String(entryAt).split(/[ T]/)[0].split("-").map(Number);
+  if (dTokens.length < 3 || isNaN(dTokens[0])) return true;
+  const entryDate = new Date(dTokens[0], dTokens[1] - 1, dTokens[2]);
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  if (period === "today") {
+    return entryDate.getTime() === today.getTime();
+  }
+  if (period === "7days") {
+    const past7 = new Date(today);
+    past7.setDate(past7.getDate() - 7);
+    return entryDate >= past7 && entryDate <= now;
+  }
+  if (period === "month") {
+    return entryDate.getFullYear() === now.getFullYear() && entryDate.getMonth() === now.getMonth();
+  }
+  if (period === "lastMonth") {
+    const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    const prevMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+    return entryDate.getFullYear() === prevYear && entryDate.getMonth() === prevMonth;
+  }
+  if (period === "year") {
+    return entryDate.getFullYear() === now.getFullYear();
+  }
+  return true;
+}
+
+/**
+ * Matches entry against search query.
+ * @param {Object} entry
+ * @param {string} query
+ * @returns {boolean}
+ */
+function matchesAuditSearch(entry, query) {
+  if (!query || !query.trim()) return true;
+  const q = query.trim().toLowerCase();
+  const byText = (entry.by || "").toLowerCase();
+  const roleText = (getUserRoleLabel(entry.role) || entry.role || "").toLowerCase();
+  const catText = (entry.cat || "").toLowerCase();
+  const actText = (entry.action || "").toLowerCase();
+  const refText = (entry.ref || "").toLowerCase();
+  const noteText = (entry.note || "").toLowerCase();
+  return byText.includes(q) || roleText.includes(q) || catText.includes(q) || actText.includes(q) || refText.includes(q) || noteText.includes(q);
+}
+
+/**
+ * Generates options for User filter dropdown based on visible entries.
+ * @param {boolean} isSuperUser
+ * @returns {string} HTML string
+ */
+function getAuditUserOptionsHtml(isSuperUser) {
+  const all = (typeof D !== "undefined" && D && Array.isArray(D.audit)) ? D.audit : [];
+  const visible = all.filter((e) => canViewAuditEntry(e, isSuperUser));
+  const usersSet = new Set();
+  visible.forEach((e) => {
+    if (e.by) usersSet.add(e.by);
+  });
+  const order = ["Super Admin", "Maria Santos", "Larpus", "Hiyo", "Unknown user"];
+  const usersList = Array.from(usersSet).sort((a, b) => {
+    const idxA = order.indexOf(a);
+    const idxB = order.indexOf(b);
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return a.localeCompare(b);
+  });
+
+  return `
+    <option value="all" ${auditUser === "all" ? "selected" : ""}>All users</option>
+    ${usersList.map((uName) => `<option value="${escHtml(uName)}" ${auditUser === uName ? "selected" : ""}>${escHtml(uName)}</option>`).join("")}
+  `;
+}
+
+/**
+ * Builds HTML for category filter chips with live counts.
+ * @param {Array<Object>} filteredEntries
+ * @param {string} activeCategory
+ * @param {boolean} isSuperUser
+ * @returns {string} HTML string
+ */
+function getAuditChipsHtml(filteredEntries, activeCategory, isSuperUser) {
+  const cats = isSuperUser ? AUDIT_ROLE_CATEGORIES.superadmin : AUDIT_ROLE_CATEGORIES.admin;
+  const allCount = filteredEntries.length;
+  const isAllSelected = activeCategory === "all";
+
+  let html = `
+    <button
+      type="button"
+      id="audit-chip-all"
+      class="chip audit-chip${isAllSelected ? " on is-selected" : ""}"
+      aria-pressed="${isAllSelected ? "true" : "false"}"
+      onclick="setAuditCategory('all')"
+    >
+      All <span class="audit-chip-count">(${allCount})</span>
+    </button>
+  `;
+
+  cats.forEach((cat) => {
+    const isSelected = activeCategory === cat;
+    const count = filteredEntries.filter((e) => e.cat === cat).length;
+    const safeId = "audit-chip-" + cat.toLowerCase().replace(/[^a-z0-9]/g, "-");
+    html += `
+      <button
+        type="button"
+        id="${safeId}"
+        class="chip audit-chip${isSelected ? " on is-selected" : ""}"
+        aria-pressed="${isSelected ? "true" : "false"}"
+        onclick="setAuditCategory('${escHtml(cat)}')"
+      >
+        ${escHtml(cat)} <span class="audit-chip-count">(${count})</span>
+      </button>
+    `;
+  });
+
+  return html;
+}
+
+/**
  * Generates the full HTML markup for the Audit view.
  * Super Admin: full view with display-only Export button.
  * Admin: restricted view without export button.
@@ -9490,7 +10503,7 @@ function getAuditViewHtml() {
   }
 
   const isSuperUser = isSuper();
-  const subtitle = "Login and logout activity.";
+  const subtitle = "Full activity log: who did what, and when.";
 
   return `
     <div class="card top">
@@ -9516,7 +10529,7 @@ function getAuditViewHtml() {
             id="audit-search"
             class="audit-input"
             placeholder="Search user, action, reference, or note..."
-            value=""
+            value="${escHtml(auditSearch)}"
             oninput="onAuditSearchInput(this.value)"
             aria-label="Search audit entries"
           />
@@ -9525,23 +10538,19 @@ function getAuditViewHtml() {
         <div style="display:flex;align-items:center;gap:6px">
           <label for="audit-period-select" style="font-size:13px;font-weight:700;color:var(--text-secondary)">Period:</label>
           <select id="audit-period-select" class="audit-select" onchange="setAuditPeriod(this.value)">
-            <option value="today">Today</option>
-            <option value="7days" selected>Last 7 Days</option>
-            <option value="month">This Month</option>
-            <option value="lastMonth">Last Month</option>
-            <option value="year">This Year</option>
-            <option value="all">All Time</option>
+            <option value="today" ${auditPeriod === "today" ? "selected" : ""}>Today</option>
+            <option value="7days" ${auditPeriod === "7days" ? "selected" : ""}>Last 7 Days</option>
+            <option value="month" ${auditPeriod === "month" ? "selected" : ""}>This Month</option>
+            <option value="lastMonth" ${auditPeriod === "lastMonth" ? "selected" : ""}>Last Month</option>
+            <option value="year" ${auditPeriod === "year" ? "selected" : ""}>This Year</option>
+            <option value="all" ${auditPeriod === "all" ? "selected" : ""}>All Time</option>
           </select>
         </div>
 
         <div style="display:flex;align-items:center;gap:6px">
           <label for="audit-user-select" style="font-size:13px;font-weight:700;color:var(--text-secondary)">User:</label>
           <select id="audit-user-select" class="audit-select" onchange="setAuditUser(this.value)">
-            <option value="all">All users</option>
-            <option value="Super Admin">Super Admin</option>
-            <option value="Maria Santos">Maria Santos</option>
-            <option value="Larpus">Larpus</option>
-            <option value="Hiyo">Hiyo</option>
+            ${getAuditUserOptionsHtml(isSuperUser)}
           </select>
         </div>
       </div>
@@ -9563,16 +10572,49 @@ function getAuditViewHtml() {
 }
 
 /**
- * Generates the HTML for summary cards, count line, and table using seeded sample entries.
+ * Generates the HTML for summary cards, category chips, count line, desktop table, and mobile cards.
  * @returns {string} HTML string.
  */
 function getAuditResultsHtml() {
+  const isSuperUser = isSuper();
+  const allEntries = (typeof D !== "undefined" && D && Array.isArray(D.audit)) ? D.audit : [];
+
+  // 1. Role visibility filter
+  const visibleEntries = allEntries.filter((e) => canViewAuditEntry(e, isSuperUser));
+
+  // 2. Period filter
+  const periodFiltered = visibleEntries.filter((e) => isEntryInPeriod(e.at, auditPeriod));
+
+  // 3. User filter
+  const userFiltered = periodFiltered.filter((e) => {
+    if (auditUser === "all" || !auditUser) return true;
+    return e.by === auditUser;
+  });
+
+  // 4. Search filter
+  const searchFiltered = userFiltered.filter((e) => matchesAuditSearch(e, auditSearch));
+
+  // Stat cards compute from searchFiltered (before category filter)
   const stat = (i, bg, l, n, t) =>
     `<div class="card st"><div class="ic" style="background:${bg}">${i}</div><div><small>${l}</small><b>${n}</b>${t}</div></div>`;
 
-  const totalEntries = SAMPLE_AUDIT_ENTRIES.length;
-  const loginsCount = SAMPLE_AUDIT_ENTRIES.filter((e) => e.action === "Login").length;
-  const logoutsCount = SAMPLE_AUDIT_ENTRIES.filter((e) => e.action === "Logout").length;
+  const totalEntries = searchFiltered.length;
+  const loginsCount = searchFiltered.filter((e) => e.action === "Login").length;
+  const logoutsCount = searchFiltered.filter((e) => e.action === "Logout").length;
+
+  // 5. Category filter for displayed rows
+  const displayedEntries = (auditCategory === "all" || !auditCategory)
+    ? searchFiltered
+    : searchFiltered.filter((e) => e.cat === auditCategory);
+
+  // Sort newest first
+  const sortedEntries = [...displayedEntries].sort((a, b) => {
+    const atA = a.at || "";
+    const atB = b.at || "";
+    return atB.localeCompare(atA);
+  });
+
+  const chipsHtml = getAuditChipsHtml(searchFiltered, auditCategory, isSuperUser);
 
   return `
     <!-- Summary Cards -->
@@ -9582,12 +10624,17 @@ function getAuditResultsHtml() {
       ${stat(LINE_ICONS.cust, "", "LOGOUTS", logoutsCount, "In period")}
     </div>
 
-    <!-- Count line -->
-    <div style="margin: 0 0 10px 4px;font-size:13px;color:var(--text-muted);font-weight:600">
-      Showing ${totalEntries} of ${totalEntries} entries
+    <!-- Category Chips Row -->
+    <div class="audit-chips-row" id="audit-category-chips" role="group" aria-label="Filter by category">
+      ${chipsHtml}
     </div>
 
-    <!-- Table -->
+    <!-- Count line -->
+    <div style="margin: 0 0 10px 4px;font-size:13px;color:var(--text-muted);font-weight:600">
+      Showing ${displayedEntries.length} of ${totalEntries} entries
+    </div>
+
+    <!-- Desktop Table -->
     <div class="um-table-wrap audit-table-wrap">
       <table class="um-table audit-table">
         <thead>
@@ -9601,9 +10648,18 @@ function getAuditResultsHtml() {
           </tr>
         </thead>
         <tbody>
-          ${SAMPLE_AUDIT_ENTRIES.map((entry) => {
+          ${!sortedEntries.length ? `
+            <tr>
+              <td colspan="6" style="text-align:center;padding:36px;color:var(--text-muted)">
+                <div style="font-weight:700;font-size:15px;color:var(--text-primary);margin-bottom:4px">No audit entries found.</div>
+                <div>Try adjusting your search, period, or category filters.</div>
+                <button type="button" class="btn g sm" style="margin-top:10px" onclick="clearAuditFilters()">Clear filters</button>
+              </td>
+            </tr>
+          ` : sortedEntries.map((entry) => {
             const timeObj = formatAuditTime(entry.at);
-            const roleLabel = getUserRoleLabel(entry.role) || entry.role || "user";
+            const roleLabel = (entry.role && entry.by !== "Unknown user") ? getUserRoleLabel(entry.role) : "";
+            const refText = (entry.ref && entry.ref !== "—" && entry.ref !== "-") ? entry.ref : "—";
             return `
               <tr>
                 <td>
@@ -9611,10 +10667,12 @@ function getAuditResultsHtml() {
                   <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${escHtml(timeObj.time)}</div>
                 </td>
                 <td>
-                  <div style="font-weight:700;color:var(--text)">${escHtml(entry.by || "System")}</div>
-                  <div style="margin-top:4px">
-                    <span class="audit-role-badge">${escHtml(roleLabel)}</span>
-                  </div>
+                  <div style="font-weight:700;color:var(--text)">${escHtml(entry.by || "Unknown user")}</div>
+                  ${roleLabel ? `
+                    <div style="margin-top:4px">
+                      <span class="audit-role-badge">${escHtml(roleLabel)}</span>
+                    </div>
+                  ` : ""}
                 </td>
                 <td>
                   <span class="audit-badge">${escHtml(entry.cat || "Sessions")}</span>
@@ -9623,10 +10681,10 @@ function getAuditResultsHtml() {
                   <span style="font-weight:700;color:var(--text)">${escHtml(entry.action || "")}</span>
                 </td>
                 <td>
-                  <code class="audit-ref">${escHtml(entry.ref || "—")}</code>
+                  <code class="audit-ref">${escHtml(refText)}</code>
                 </td>
                 <td>
-                  <div style="white-space:pre-wrap;word-break:break-word;font-size:13px;color:var(--text)">${escHtml(entry.note || "—")}</div>
+                  <div style="white-space:pre-wrap;word-break:break-word;font-size:13px;color:var(--text);line-height:1.4">${escHtml(entry.note || "—")}</div>
                 </td>
               </tr>
             `;
@@ -9634,12 +10692,103 @@ function getAuditResultsHtml() {
         </tbody>
       </table>
     </div>
+
+    <!-- Mobile Card List -->
+    <div class="audit-cards" id="audit-cards">
+      ${!sortedEntries.length ? `
+        <div class="card audit-card" style="text-align:center;padding:36px;color:var(--text-muted)">
+          <div style="font-weight:700;font-size:15px;color:var(--text-primary);margin-bottom:4px">No audit entries found.</div>
+          <div>Try adjusting your search, period, or category filters.</div>
+          <button type="button" class="btn g sm" style="margin-top:10px" onclick="clearAuditFilters()">Clear filters</button>
+        </div>
+      ` : sortedEntries.map((entry) => {
+        const timeObj = formatAuditTime(entry.at);
+        const roleLabel = (entry.role && entry.by !== "Unknown user") ? getUserRoleLabel(entry.role) : "";
+        const refText = (entry.ref && entry.ref !== "—" && entry.ref !== "-") ? entry.ref : "—";
+        return `
+          <div class="card audit-card">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                <span class="audit-badge">${escHtml(entry.cat || "Sessions")}</span>
+                <span style="font-weight:700;color:var(--text)">${escHtml(entry.action || "")}</span>
+              </div>
+              <div style="text-align:right;font-size:12px;color:var(--text-muted);white-space:nowrap">
+                <div>${escHtml(timeObj.date)}</div>
+                <div>${escHtml(timeObj.time)}</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+              <span style="font-weight:700;font-size:13px;color:var(--text)">${escHtml(entry.by || "Unknown user")}</span>
+              ${roleLabel ? `<span class="audit-role-badge">${escHtml(roleLabel)}</span>` : ""}
+              ${refText !== "—" ? `<code class="audit-ref">${escHtml(refText)}</code>` : ""}
+            </div>
+            <div style="font-size:13px;color:var(--text);word-break:break-word;white-space:pre-wrap;line-height:1.4">
+              ${escHtml(entry.note || "—")}
+            </div>
+          </div>
+        `;
+      }).join("")}
+    </div>
   `;
 }
 
-function onAuditSearchInput() {}
-function setAuditPeriod() {}
-function setAuditUser() {}
+/**
+ * Sets active audit category filter and re-renders results.
+ * @param {string} cat
+ */
+function setAuditCategory(cat) {
+  auditCategory = cat;
+  const wrap = $("audit-results-wrap");
+  if (wrap) wrap.innerHTML = getAuditResultsHtml();
+}
+
+/**
+ * Handles search query changes for Audit view.
+ * @param {string} val
+ */
+function onAuditSearchInput(val) {
+  auditSearch = val || "";
+  const wrap = $("audit-results-wrap");
+  if (wrap) wrap.innerHTML = getAuditResultsHtml();
+}
+
+/**
+ * Sets the active period filter for Audit view.
+ * @param {string} val
+ */
+function setAuditPeriod(val) {
+  auditPeriod = val || "7days";
+  const wrap = $("audit-results-wrap");
+  if (wrap) wrap.innerHTML = getAuditResultsHtml();
+}
+
+/**
+ * Sets the active user filter for Audit view.
+ * @param {string} val
+ */
+function setAuditUser(val) {
+  auditUser = val || "all";
+  const wrap = $("audit-results-wrap");
+  if (wrap) wrap.innerHTML = getAuditResultsHtml();
+}
+
+/**
+ * Resets all audit filters to defaults.
+ */
+function clearAuditFilters() {
+  auditSearch = "";
+  auditPeriod = "7days";
+  auditCategory = "all";
+  auditUser = "all";
+  const sInp = $("audit-search");
+  if (sInp) sInp.value = "";
+  const pSel = $("audit-period-select");
+  if (pSel) pSel.value = "7days";
+  const uSel = $("audit-user-select");
+  if (uSel) uSel.value = "all";
+  const wrap = $("audit-results-wrap");
+  if (wrap) wrap.innerHTML = getAuditResultsHtml();
+}
 
 /* ==========================================================
    9.5 QUICK SALES
@@ -10621,6 +11770,7 @@ function initAuth() {
 
   // Reset demo cancelled jobs after data load & migration and before first render
   resetDemoCancelledJobs();
+  seedAuditEntries();
 
   let validUser = null;
   if (session && session.userId) {

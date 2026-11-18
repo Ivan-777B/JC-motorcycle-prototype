@@ -20,6 +20,15 @@
   --success-soft:   #ECFDF5;
   --success-border: #A7F3D0;
 
+  /* Reports Chart Colors */
+  --chart-1:        #2563EB;
+  --chart-2:        #60A5FA;
+  --chart-3:        #93C5FD;
+  --chart-4:        #BFDBFE;
+  --chart-other:    #CBD5E1;
+  --chart-accent-2: #6366F1;
+  --chart-track:    #E2E8F0;
+
   /* Sidebar Navigation Two-Tone Colors (Google Workspace Style) */
   --nav-dash:         #2563EB;
   --nav-dash-tint:    #BFDBFE;
@@ -8613,4 +8622,516 @@ body.is-mobile .jc-stage-actions button,
   transform: translateX(-50%) translateY(0);
   pointer-events: auto;
 }
+
+/* ==========================================================
+   AUDIT EXPANSION (TASK B)
+   ========================================================== */
+
+.audit-chips-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 6px;
+  margin-bottom: 16px;
+  scrollbar-width: thin;
+}
+
+.audit-chip {
+  all: unset;
+  cursor: pointer;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text);
+  padding: 8px 16px;
+  min-height: 44px;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  box-sizing: border-box;
+  user-select: none;
+  touch-action: manipulation;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.audit-chip:hover {
+  border-color: #94A3B8;
+  background: var(--bg-subtle, #F1F5F9);
+}
+
+.audit-chip.on,
+.audit-chip.is-selected {
+  background: #0F172A;
+  color: #FFFFFF;
+  border-color: #0F172A;
+}
+
+.audit-chip-count {
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.audit-table tbody tr {
+  cursor: default;
+}
+
+.audit-cards {
+  display: none;
+}
+
+.audit-card {
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Mobile UI & Narrow Viewports */
+.mobile-ui .audit-table-wrap,
+[data-mobile] .audit-table-wrap,
+body.is-mobile .audit-table-wrap {
+  display: none !important;
+}
+
+.mobile-ui .audit-cards,
+[data-mobile] .audit-cards,
+body.is-mobile .audit-cards {
+  display: flex !important;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mobile-ui .audit-toolbar,
+[data-mobile] .audit-toolbar,
+body.is-mobile .audit-toolbar {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.mobile-ui .audit-toolbar > div,
+[data-mobile] .audit-toolbar > div,
+body.is-mobile .audit-toolbar > div {
+  width: 100%;
+}
+
+.mobile-ui .audit-input,
+[data-mobile] .audit-input,
+body.is-mobile .audit-input,
+.mobile-ui .audit-select,
+[data-mobile] .audit-select,
+body.is-mobile .audit-select {
+  width: 100%;
+  min-height: 44px;
+}
+
+@media (max-width: 640px) {
+  .audit-table-wrap {
+    display: none !important;
+  }
+  .audit-cards {
+    display: flex !important;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .audit-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .audit-toolbar > div {
+    width: 100%;
+  }
+  .audit-input,
+  .audit-select {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+/* ==========================================================
+   MECHANIC DASHBOARD (PART A)
+   ========================================================== */
+
+.stats.mdash-stats {
+  grid-template-columns: repeat(3, 1fr) !important;
+}
+
+.dash-quick-actions.mdash-tiles {
+  grid-template-columns: repeat(3, 1fr) !important;
+}
+
+@media (max-width: 1024px) {
+  .stats.mdash-stats {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .stats.mdash-stats > :nth-child(3) {
+    grid-column: 1 / -1;
+  }
+  .dash-quick-actions.mdash-tiles {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .dash-quick-actions.mdash-tiles > :nth-child(3) {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 600px) {
+  .stats.mdash-stats {
+    grid-template-columns: 1fr !important;
+  }
+  .stats.mdash-stats > :nth-child(3) {
+    grid-column: auto;
+  }
+  .dash-quick-actions.mdash-tiles {
+    grid-template-columns: 1fr !important;
+  }
+  .dash-quick-actions.mdash-tiles > :nth-child(3) {
+    grid-column: auto;
+  }
+}
+
+.mobile-ui .stats.mdash-stats,
+[data-mobile] .stats.mdash-stats,
+body.is-mobile .stats.mdash-stats {
+  grid-template-columns: 1fr !important;
+}
+
+.mobile-ui .stats.mdash-stats > :nth-child(3),
+[data-mobile] .stats.mdash-stats > :nth-child(3),
+body.is-mobile .stats.mdash-stats > :nth-child(3) {
+  grid-column: auto;
+}
+
+.mobile-ui .dash-quick-actions.mdash-tiles,
+[data-mobile] .dash-quick-actions.mdash-tiles,
+body.is-mobile .dash-quick-actions.mdash-tiles {
+  grid-template-columns: 1fr !important;
+}
+
+.mobile-ui .dash-quick-actions.mdash-tiles > :nth-child(3),
+[data-mobile] .dash-quick-actions.mdash-tiles > :nth-child(3),
+body.is-mobile .dash-quick-actions.mdash-tiles > :nth-child(3) {
+  grid-column: auto;
+}
+
+/* ==========================================================
+   REPORTS - CHART COMPONENTS
+   ========================================================== */
+
+/* Staff Performance Split Card (Row 1) */
+.rpt-staff-split {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.rpt-staff-left {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 180px;
+}
+
+.rpt-staff-right {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.rpt-donut-wrap {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rpt-donut-svg {
+  width: 160px;
+  height: 160px;
+  display: block;
+}
+
+.rpt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.rpt-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.rpt-table th.r,
+.rpt-table td.r {
+  text-align: right;
+}
+
+.rpt-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  min-height: 36px;
+}
+
+.rpt-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.rpt-staff-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.rpt-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.rpt-footnote {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Horizontal Bar Charts: Most Labor Done & Most Used Parts (Row 2) */
+.rpt-bar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rpt-bar-row {
+  display: grid;
+  grid-template-columns: minmax(100px, 160px) 1fr 48px;
+  align-items: center;
+  gap: 12px;
+  min-height: 36px;
+}
+
+@media (max-width: 480px) {
+  .rpt-bar-row {
+    grid-template-columns: minmax(70px, 110px) 1fr 36px;
+    gap: 8px;
+  }
+}
+
+.rpt-bar-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rpt-bar-track {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--chart-track);
+  overflow: hidden;
+  width: 100%;
+}
+
+.rpt-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  min-width: 0;
+  transition: width 0.2s ease;
+}
+
+.rpt-bar-fill-labor {
+  background: var(--chart-1);
+}
+
+.rpt-bar-fill-parts {
+  background: var(--chart-accent-2);
+}
+
+.rpt-bar-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Progress-Bar List: Top Customer Complaints (Row 3 Left) */
+.rpt-progress-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rpt-progress-row {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+}
+
+.rpt-progress-labels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rpt-progress-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rpt-progress-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.rpt-progress-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--chart-track);
+  overflow: hidden;
+  width: 100%;
+}
+
+.rpt-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--chart-3);
+  transition: width 0.2s ease;
+}
+
+/* Ranked List: Most Frequent Fault Codes (Row 3 Right) */
+.rpt-ranked-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rpt-ranked-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 36px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.rpt-ranked-row:last-child {
+  border-bottom: none;
+}
+
+.rpt-ranked-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.rpt-rank-num {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  width: 24px;
+  flex-shrink: 0;
+}
+
+.rpt-code-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  font-family: monospace;
+}
+
+.rpt-code-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rpt-count-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 24px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--bg-subtle, #F1F5F9);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+/* Empty State */
+.rpt-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* Responsive & Mobile UI Overrides */
+@media (max-width: 768px) {
+  .rpt-staff-split {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 20px;
+  }
+  .rpt-staff-left {
+    min-width: 0;
+  }
+}
+
+.mobile-ui .rpt-staff-split,
+[data-mobile] .rpt-staff-split,
+body.is-mobile .rpt-staff-split {
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 20px;
+}
+
+.mobile-ui .reports-grid,
+[data-mobile] .reports-grid,
+body.is-mobile .reports-grid {
+  grid-template-columns: 1fr !important;
+}
+
 
