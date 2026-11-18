@@ -5182,135 +5182,10 @@ body.logged-in .login-screen {
 }
 
 /* ==========================================================================
-   USER MANAGEMENT & PERMISSIONS MATRIX
+   SHARED TABLE & BADGE STYLES
    ========================================================================== */
 
-/* User Management Header & Tabs */
-.um-header {
-  margin-bottom: 20px;
-}
-.um-title {
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--text-primary);
-  margin: 0 0 4px;
-}
-.um-subtitle {
-  font-size: 14px;
-  color: var(--text-muted);
-  margin: 0;
-}
-
-.um-tabs {
-  display: flex;
-  gap: 24px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 20px;
-}
-.um-tab {
-  all: unset;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 4px 12px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-muted);
-  border-bottom: 2px solid transparent;
-  transition: all 0.15s ease;
-}
-.um-tab:hover {
-  color: var(--text-primary);
-}
-.um-tab.active {
-  color: #2563EB;
-  font-weight: 700;
-  border-bottom-color: #2563EB;
-}
-.um-tab:focus-visible {
-  outline: 2px solid #2563EB;
-  outline-offset: 4px;
-}
-
-/* User Directory Toolbar */
-.um-toolbar {
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-  box-shadow: var(--shadow-sm);
-}
-.um-toolbar-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  flex: 1;
-}
-.um-search-wrap {
-  position: relative;
-  min-width: 260px;
-  flex: 1;
-  max-width: 380px;
-}
-.um-search-icon {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-muted);
-  font-size: 14px;
-  pointer-events: none;
-}
-.um-search-input {
-  width: 100%;
-  box-sizing: border-box;
-  height: 44px;
-  padding: 0 14px 0 38px;
-  border-radius: 10px;
-  border: 1px solid #E2E8F0;
-  background: #F8FAFC;
-  font-size: 14px;
-  color: var(--text-primary);
-  outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-.um-search-input:focus {
-  border-color: #2563EB;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-}
-.btn-add-user {
-  height: 44px;
-  padding: 0 18px;
-  border-radius: 10px;
-  background: #2563EB;
-  color: #FFFFFF;
-  border: none;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  transition: background-color 0.15s ease;
-  white-space: nowrap;
-}
-.btn-add-user:hover {
-  background: #1D4ED8;
-}
-.btn-add-user:focus-visible {
-  outline: 2px solid #2563EB;
-  outline-offset: 2px;
-}
-
-/* User Directory Table */
+/* Shared Table */
 .um-table-wrap {
   background: var(--bg-surface);
   border: 1px solid var(--border);
@@ -5343,11 +5218,8 @@ body.logged-in .login-screen {
 .um-table tbody tr:hover {
   background: #F8FAFC;
 }
-.um-user-cell {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
+
+/* User Avatars */
 .um-avatar {
   width: 38px;
   height: 38px;
@@ -5370,29 +5242,6 @@ body.logged-in .login-screen {
 .um-avatar.mechanic {
   background: var(--accent-soft);
   color: #1D4ED8;
-}
-.um-user-name-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.um-user-name {
-  font-weight: 700;
-  color: var(--text-primary);
-}
-.um-you-pill {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 10px;
-  background: #E2E8F0;
-  color: var(--text-muted);
-}
-.um-username {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-top: 2px;
 }
 
 /* Role Badges */
@@ -5438,78 +5287,6 @@ body.logged-in .login-screen {
   background: var(--bg-subtle);
   border-color: var(--border);
   color: var(--text-muted);
-}
-
-/* User Action Buttons */
-.um-action-btn {
-  all: unset;
-  cursor: pointer;
-  box-sizing: border-box;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary);
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-.um-action-btn:hover {
-  background: #F1F5F9;
-  color: var(--text-primary);
-}
-.um-action-btn:focus-visible {
-  outline: 2px solid #2563EB;
-  outline-offset: 2px;
-}
-
-/* Permissions Matrix Tab */
-.matrix-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: var(--shadow-sm);
-  overflow-x: auto;
-}
-.matrix-table {
-  width: 100%;
-  min-width: 600px;
-  border-collapse: collapse;
-}
-.matrix-table th {
-  padding: 12px 16px;
-  text-align: left;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: .05em;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  border-bottom: 2px solid #E2E8F0;
-}
-.matrix-table td {
-  padding: 14px 16px;
-  border-bottom: 1px solid #E2E8F0;
-  font-size: 14px;
-  vertical-align: middle;
-}
-.matrix-table tbody tr:hover {
-  background: #F8FAFC;
-}
-.matrix-check-wrap {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.matrix-check {
-  width: 18px;
-  height: 18px;
-  accent-color: #2563EB;
-  cursor: pointer;
-}
-.matrix-check:disabled {
-  cursor: not-allowed;
-  opacity: 0.7;
 }
 
 /* ==========================================================================

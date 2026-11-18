@@ -515,7 +515,7 @@ const ROLES = {
 // Default Primary & Admin Navigation pages each role can open.
 const DEFAULT_ROLE_NAV = {
   admin:      ["dash", "cust", "insp", "rep", "pos", "ql", "cat", "bill", "his", "reports", "audit"],
-  superadmin: ["dash", "cust", "insp", "rep", "pos", "ql", "cat", "bill", "his", "reports", "audit", "users"],
+  superadmin: ["dash", "cust", "insp", "rep", "pos", "ql", "cat", "bill", "his", "reports", "audit"],
   mechanic:   ["dash", "insp", "rep", "pos", "ql", "bill"]
 };
 const ROLE_NAV = DEFAULT_ROLE_NAV;
@@ -528,7 +528,7 @@ const ROLE_NAV = DEFAULT_ROLE_NAV;
  *   _q: 1 migrated mechanic to dedicated "qlabor".
  *   _p: 1 grants full POS tabs ("pos", "ql", "bill") to Mechanic and removes "qlabor" once.
  *   _a: 1 grants "audit" to admin and superadmin once and ensures mechanic does not have it.
- * Super Admin always has "users" and "audit", Admin and Super Admin always have "dash", regardless of stored matrix.
+ * Super Admin always has "audit", Admin and Super Admin always have "dash", regardless of stored matrix.
  * Mechanic role is hard-coded to never have access to "audit".
  * @param {string} role - System role key.
  * @returns {Array<string>} Allowed route keys.
@@ -600,12 +600,7 @@ function getRoleNav(role) {
     try {
       if (Array.isArray(matrix.superadmin)) {
         if (!matrix.superadmin.includes("audit")) {
-          const uIdx = matrix.superadmin.indexOf("users");
-          if (uIdx !== -1) {
-            matrix.superadmin.splice(uIdx, 0, "audit");
-          } else {
-            matrix.superadmin.push("audit");
-          }
+          matrix.superadmin.push("audit");
         }
       } else {
         matrix.superadmin = [...DEFAULT_ROLE_NAV.superadmin];
@@ -632,11 +627,8 @@ function getRoleNav(role) {
     ? [...matrix[role]]
     : [...(DEFAULT_ROLE_NAV[role] || [])];
 
-  // Super Admin ALWAYS has access to User Management and Audit
+  // Super Admin ALWAYS has access to Audit
   if (role === "superadmin") {
-    if (!list.includes("users")) {
-      list.push("users");
-    }
     if (!list.includes("audit")) {
       list.push("audit");
     }
@@ -650,17 +642,21 @@ function getRoleNav(role) {
     list = list.filter((k) => k !== "audit");
   }
 
+  // Ensure removed pages (such as legacy "users") from stored matrices are ignored
+  list = list.filter((k) => k !== "users");
+
   const validKeys = V.map((x) => x[0]);
   return list.filter((k) => validKeys.includes(k));
 }
 
 /**
  * Checks whether the active role has permission to open a specific navigation page.
- * Hard-coded to refuse Mechanic from opening "audit".
- * @param {string} pageKey - Route key to check (e.g. "dash", "cust", "rep", "cat", "his", "reports", "audit", "users").
+ * Hard-coded to refuse Mechanic from opening "audit", and refuses removed "users" page.
+ * @param {string} pageKey - Route key to check (e.g. "dash", "cust", "rep", "cat", "his", "reports", "audit").
  * @returns {boolean} True if the active role can open the page.
  */
 const canOpen = (pageKey) => {
+  if (pageKey === "users") return false;
   const u = getCurrentUser();
   if (!u) return false;
   if (pageKey === "audit" && u.activeRole === "mechanic") return false;
@@ -2865,12 +2861,11 @@ const V = [
   ["bill", "💳", "Transactions & Billing"],
   ["his", "🕘", "Service History"],
   ["reports", "📊", "Reports"],
-  ["audit", "📋", "Audit"],
-  ["users", "🛡️", "User Management"]
+  ["audit", "📋", "Audit"]
 ];
 
 /** Route keys placed under the ADMINISTRATION & SUPPORT section. */
-const ADMIN_NAV_KEYS = ["reports", "audit", "users"];
+const ADMIN_NAV_KEYS = ["reports", "audit"];
 
 /** Currently active view key. */
 let view = "dash";
@@ -3111,7 +3106,7 @@ function renderNav() {
 /**
  * Navigates to a view, updates sidebar active states, and renders the view content.
  * Resets search and filter state when navigating to another view (preserves hisBike for his view).
- * @param {string} v - Target view key ("dash", "cust", "insp", "rep", "cat", "his", "reports", "users").
+ * @param {string} v - Target view key ("dash", "cust", "insp", "rep", "cat", "his", "reports", "audit").
  */
 function go(v) {
   closeAccountSwitcher();
@@ -3120,14 +3115,16 @@ function go(v) {
     closeAppDrawer({ restoreFocus: false });
   }
   syncSidebarMode();
+  // Redirect removed User Management route to Dashboard
+  if (v === "users") {
+    v = "dash";
+  }
   if (!canOpen(v)) return;
   if (v === "audit") {
     const u = getCurrentUser();
     if (!u || u.activeRole === "mechanic" || !canOpen("audit") || (!isSuper() && u.activeRole !== "admin")) return;
   }
   if (view !== v || v === "bill") {
-    userMgmtTab = "directory";
-    userSearch = "";
     billSearch = "";
     billFilter = "all";
     catFilter = "all";
@@ -5577,15 +5574,6 @@ const R = {
    */
   audit() {
     return getAuditViewHtml();
-  },
-
-  /**
-   * User Management view: employee directory, account credentials, and permissions matrix.
-   * Accessible exclusively to Super Admin.
-   * @returns {string} HTML string.
-   */
-  users() {
-    return getUsersViewHtml();
   }
 };
 
@@ -8931,7 +8919,7 @@ function openReceipt(woId) {
     ` : ""}
     <div style="text-align:center;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:16px">
       <div style="display:flex;justify-content:center;margin-bottom:4px;color:var(--text)">${ICONS.bike}</div>
-      <h2 style="margin:4px 0 2px;font-size:22px;color:var(--text)">MotoShop</h2>
+      <h2 style="margin:4px 0 2px;font-size:22px;color:var(--text)">MotorCare</h2>
       <div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em">${isQuick ? `Quick Fix Receipt · ${escHtml((o && getQuickLaborSubtypeLabel(o)) || (seeded && seeded.subtype) || "Labor Only")}` : "Official Repair &amp; Service Receipt"}</div>
       <div style="font-size:13px;font-weight:700;color:var(--accent);margin-top:6px">${isQuick ? ((o && (o.no || o.txnId || getTxnId(o))) || (seeded && seeded.jo) || "QL-0001") : jo}</div>
       <div style="font-size:11px;color:var(--text-muted)">${formatJobDate(pay.paidAt || today())} · ${formatJobTime(pay.paidAt || "")}</div>
@@ -9043,443 +9031,6 @@ function openReceipt(woId) {
 function closeReceipt() {
   const ov = $("rcpt-ov");
   if (ov) ov.classList.remove("on");
-}
-
-/* ==========================================================
-   USER MANAGEMENT
-   ========================================================== */
-
-/** Currently active tab on User Management screen ("directory" or "matrix"). */
-let userMgmtTab = "directory";
-
-/** Active search query for user directory table. */
-let userSearch = "";
-
-/**
- * Sets the active tab on the User Management screen.
- * @param {"directory"|"matrix"} tab - Target tab.
- */
-function setUserMgmtTab(tab) {
-  userMgmtTab = tab;
-  const main = $("main");
-  if (main) main.innerHTML = getUsersViewHtml();
-}
-
-/**
- * Handles live search input on User Directory tab.
- * Refreshes only the table rows to preserve input focus.
- * @param {string} val - Typed search string.
- */
-function onUserSearchInput(val) {
-  userSearch = val;
-  const tbody = $("user-table-body");
-  if (tbody) tbody.innerHTML = getUserTableRowsHtml();
-}
-
-/**
- * Returns filtered user accounts matching search query.
- * @returns {Array<Object>} Filtered list of user accounts.
- */
-function getFilteredUsers() {
-  const users = loadUsers();
-  const q = (userSearch || "").trim().toLowerCase();
-  if (!q) return users;
-  return users.filter((u) => {
-    const name = (u.name || "").toLowerCase();
-    const email = (u.email || "").toLowerCase();
-    return name.includes(q) || email.includes(q);
-  });
-}
-
-/**
- * Formats user role badge with role-tinted background, border, and icon.
- * @param {string} role - System role key.
- * @returns {string} HTML markup string.
- */
-function getUserRoleBadge(role) {
-  if (role === "superadmin") {
-    return `<span class="um-role-badge superadmin"><span style="display:inline-flex;align-items:center">${LINE_ICONS.users}</span> SUPER ADMIN</span>`;
-  }
-  if (role === "admin") {
-    return `<span class="um-role-badge admin"><span style="display:inline-flex;align-items:center">${ICONS.crown}</span> ADMIN</span>`;
-  }
-  return `<span class="um-role-badge mechanic"><span style="display:inline-flex;align-items:center">${LINE_ICONS.rep}</span> MECHANIC</span>`;
-}
-
-/**
- * Formats a stored local timestamp string into a dark date and muted time.
- * @param {string} ts - Stored local timestamp ("YYYY-MM-DD HH:MM").
- * @returns {string} Formatted HTML.
- */
-function formatLastLoginDisplay(ts) {
-  if (!ts || !ts.trim()) {
-    return `<span style="color:var(--text-muted)">Never</span>`;
-  }
-  const parts = ts.trim().split(" ");
-  if (parts.length !== 2) return `<span style="color:var(--text-muted)">Never</span>`;
-  const [datePart, timePart] = parts;
-  const [y, m, d] = datePart.split("-").map(Number);
-  const [hr, min] = timePart.split(":").map(Number);
-  if (!y || !m || !d || isNaN(hr) || isNaN(min)) {
-    return `<span style="color:var(--text-muted)">Never</span>`;
-  }
-  const dateObj = new Date(y, m - 1, d, hr, min);
-  const dateStr = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  const timeStr = dateObj.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
-  return `
-    <div style="font-weight:600;color:var(--text-primary)">${escHtml(dateStr)}</div>
-    <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${escHtml(timeStr)}</div>
-  `;
-}
-
-/**
- * Builds HTML table rows for the User Directory table.
- * @returns {string} HTML table rows.
- */
-function getUserTableRowsHtml() {
-  const list = getFilteredUsers();
-  if (!list.length) {
-    return `
-      <tr>
-        <td colspan="5" style="text-align:center;padding:36px;color:var(--text-muted)">
-          <div style="font-weight:700;font-size:15px;color:var(--text-primary);margin-bottom:4px">No users found.</div>
-          <div>Try a different search or filter.</div>
-        </td>
-      </tr>
-    `;
-  }
-
-  const current = getCurrentUser();
-  const curId = current ? current.id : null;
-  const allUsers = loadUsers();
-  const activeSuperAdmins = allUsers.filter((u) => u.role === "superadmin" && u.active !== false).length;
-
-  return list.map((u) => {
-    const isSelf = u.id === curId;
-    const isLastSuperAdmin = u.role === "superadmin" && activeSuperAdmins <= 1 && u.active !== false;
-    const canToggleStatus = !isSelf && !isLastSuperAdmin;
-    const isActive = u.active !== false;
-    const roleBadge = getUserRoleBadge(u.role);
-    const statusBadge = isActive
-      ? `<span class="um-status-pill active">● Active</span>`
-      : `<span class="um-status-pill inactive">● Inactive</span>`;
-    const lastLoginHtml = formatLastLoginDisplay(u.lastLogin);
-    const emailPrefix = (u.email || "").split("@")[0] || "user";
-    const usernameStr = `@${emailPrefix}.${u.role}`;
-
-    return `
-      <tr>
-        <td>
-          <div class="um-user-cell">
-            <div class="um-avatar ${escHtml(u.role)}">${getInitials(u.name)}</div>
-            <div>
-              <div class="um-user-name-row">
-                <span class="um-user-name">${escHtml(u.name)}</span>
-                ${isSelf ? `<span class="um-you-pill">You</span>` : ""}
-              </div>
-              <div class="um-username">${escHtml(usernameStr)}</div>
-            </div>
-          </div>
-        </td>
-        <td>${roleBadge}</td>
-        <td>${statusBadge}</td>
-        <td>${lastLoginHtml}</td>
-        <td class="r" style="white-space:nowrap">
-          <button type="button" class="um-action-btn" data-demo="true" onclick="showDemoNotice()" title="Edit user" aria-label="Edit user">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-            </svg>
-          </button>
-          <button type="button" class="um-action-btn" onclick="openViewAccessModal('${u.id}')" title="View access" aria-label="View access">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="7.5" cy="15.5" r="5.5"></circle>
-              <path d="m21 2-9.6 9.6"></path>
-              <path d="m15.5 7.5 3 3L22 7l-3-3"></path>
-            </svg>
-          </button>
-          ${canToggleStatus ? `
-            <button type="button" class="um-action-btn" data-demo="true" onclick="showDemoNotice()" title="${isActive ? "Deactivate user" : "Reactivate user"}" aria-label="${isActive ? "Deactivate user" : "Reactivate user"}">
-              ${isActive
-                ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="22" y1="11" x2="16" y2="11"></line></svg>`
-                : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><polyline points="16 11 18 13 22 9"></polyline></svg>`
-              }
-            </button>
-          ` : ""}
-        </td>
-      </tr>
-    `;
-  }).join("");
-}
-
-/**
- * Opens view access modal showing role description and accessible pages for a user.
- * @param {string} userId
- */
-function openViewAccessModal(userId) {
-  const users = loadUsers();
-  const u = users.find((x) => x.id === userId);
-  if (!u) return;
-
-  const ov = $("access-ov");
-  const md = $("access-md");
-  if (!ov || !md) return;
-
-  const allowedKeys = getRoleNav(u.role);
-  const allowedPages = V.filter((x) => allowedKeys.includes(x[0]));
-
-  let desc = "Standard user with assigned role access.";
-  if (u.role === "superadmin") {
-    desc = "Complete control over user accounts, permissions, reports, and service history.";
-  } else if (u.role === "admin") {
-    desc = "Operations manager with full access to Service Status, customers, catalog, billing, and reports.";
-  } else if (u.role === "mechanic") {
-    desc = "Service floor specialist with access to dashboard queue, inspections, and assigned repair jobs.";
-  }
-
-  md.innerHTML = `
-    <div class="insp-header">
-      <div>
-        <div class="insp-title" id="access-modal-title">Role Access &amp; Permissions</div>
-        <div class="insp-subtitle">${escHtml(u.name)} (${escHtml(u.email)})</div>
-      </div>
-      <button type="button" class="insp-close-btn" onclick="closeViewAccessModal()" title="Close dialog" aria-label="Close dialog">✕</button>
-    </div>
-
-    <div style="padding:20px;display:flex;flex-direction:column;gap:16px">
-      <div style="display:flex;align-items:center;gap:12px;padding:12px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px">
-        <div class="um-avatar ${escHtml(u.role)}">${getInitials(u.name)}</div>
-        <div>
-          <div style="font-weight:700;font-size:15px;color:var(--text-primary)">${escHtml(u.name)}</div>
-          <div style="margin-top:2px">${getUserRoleBadge(u.role)}</div>
-        </div>
-      </div>
-
-      <div>
-        <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Role Description</div>
-        <div style="font-size:13px;color:var(--text-secondary);line-height:1.5">${desc}</div>
-      </div>
-
-      <div>
-        <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Accessible Navigation Pages</div>
-        <div style="display:flex;flex-direction:column;gap:6px">
-          ${allowedPages.map((p) => `
-            <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:8px;font-size:13px;font-weight:600">
-              <span>${p[1]}</span>
-              <span>${p[2]}</span>
-            </div>
-          `).join("")}
-        </div>
-      </div>
-    </div>
-
-    <div class="insp-footer" style="position:static;padding-top:14px;border-top:1px solid var(--border);display:flex;justify-content:flex-end">
-      <button type="button" class="btn" onclick="closeViewAccessModal()">Close</button>
-    </div>
-  `;
-
-  ov.style.display = "block";
-  ov.classList.add("on");
-  document.body.style.overflow = "hidden";
-}
-
-/**
- * Closes the View Access modal dialog.
- */
-function closeViewAccessModal() {
-  const ov = $("access-ov");
-  if (ov) {
-    ov.classList.remove("on");
-    ov.style.display = "none";
-  }
-  document.body.style.overflow = "";
-}
-
-/**
- * Builds HTML for the Permissions Matrix tab table.
- * @returns {string} HTML string.
- */
-function getPermissionsMatrixHtml() {
-  const superNav = getRoleNav("superadmin");
-  const adminNav = getRoleNav("admin");
-  const mechNav = getRoleNav("mechanic");
-
-  return `
-    <div class="matrix-card">
-      <table class="matrix-table">
-        <thead>
-          <tr>
-            <th>PAGE / MODULE</th>
-            <th>SUPER ADMIN</th>
-            <th>ADMIN</th>
-            <th>MECHANIC</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${V.map((route) => {
-            const key = route[0];
-            const icon = route[1];
-            const label = route[2];
-
-            const isSuperLocked = key === "users" || key === "dash" || key === "audit";
-            const isAdminLocked = key === "dash";
-            const isMechLocked = key === "audit";
-
-            const hasSuper = superNav.includes(key);
-            const hasAdmin = adminNav.includes(key);
-            const hasMech = mechNav.includes(key);
-
-            return `
-              <tr>
-                <td>
-                  <div style="display:flex;align-items:center;gap:10px;font-weight:700">
-                    <span style="display:inline-flex;align-items:center;color:var(--text)">${ICONS[key] || icon}</span>
-                    <span>${label}</span>
-                  </div>
-                </td>
-                <td>
-                  <label class="matrix-check-wrap" title="${isSuperLocked ? (key === "users" ? "Super Admin must always have access to User Management." : key === "audit" ? "Super Admin must always have access to Audit." : "Super Admin must always have access to Dashboard.") : ""}">
-                    <input
-                      type="checkbox"
-                      class="matrix-check"
-                      ${hasSuper ? "checked" : ""}
-                      ${isSuperLocked ? "disabled" : `onclick="event.preventDefault(); showDemoNotice();"`}
-                    />
-                    ${isSuperLocked ? `<span style="display:inline-flex;align-items:center;color:var(--text-muted)" title="Locked permission">${ICONS.lock}</span>` : ""}
-                  </label>
-                </td>
-                <td>
-                  <label class="matrix-check-wrap" title="${isAdminLocked ? "Admin must always have access to Dashboard." : ""}">
-                    <input
-                      type="checkbox"
-                      class="matrix-check"
-                      ${hasAdmin ? "checked" : ""}
-                      ${isAdminLocked ? "disabled" : `onclick="event.preventDefault(); showDemoNotice();"`}
-                    />
-                    ${isAdminLocked ? `<span style="display:inline-flex;align-items:center;color:var(--text-muted)" title="Locked permission">${ICONS.lock}</span>` : ""}
-                  </label>
-                </td>
-                <td>
-                  <label class="matrix-check-wrap" title="${isMechLocked ? "Audit is not available to Mechanics." : ""}">
-                    <input
-                      type="checkbox"
-                      class="matrix-check"
-                      ${hasMech && !isMechLocked ? "checked" : ""}
-                      ${isMechLocked ? "disabled" : `onclick="event.preventDefault(); showDemoNotice();"`}
-                    />
-                    ${isMechLocked ? `<span style="display:inline-flex;align-items:center;color:var(--text-muted)" title="Audit is not available to Mechanics.">${ICONS.lock}</span>` : ""}
-                  </label>
-                </td>
-              </tr>
-            `;
-          }).join("")}
-        </tbody>
-      </table>
-
-      <div style="margin-top:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
-        <div>
-          <p style="margin:0 0 4px;font-size:13px;color:var(--text-muted);font-style:italic">
-            POS includes Quick Sales, Quick Labor, and Transactions &amp; Billing. The 'Quick Labor' row opens the Quick Labor tab only.
-          </p>
-          <p style="margin:0;font-size:13px;color:var(--text-muted);font-style:italic">
-            This controls which pages each role can open. It hides pages in the browser only and is not real security.
-          </p>
-        </div>
-        <button
-          type="button"
-          id="btn-matrix-reset"
-          class="btn g sm"
-          data-demo="true"
-          onclick="showDemoNotice()"
-          style="color:var(--text-muted);font-weight:600"
-        >
-          Reset to defaults
-        </button>
-      </div>
-    </div>
-  `;
-}
-
-/**
- * Generates the full HTML markup for the User Management view (Super Admin only).
- * @returns {string} HTML markup string.
- */
-function getUsersViewHtml() {
-  const isDirectory = userMgmtTab === "directory";
-
-  return `
-    <div class="um-header">
-      <h1 class="um-title">User Management</h1>
-      <p class="um-subtitle">Manage employee accounts and role access.</p>
-    </div>
-
-    <!-- Tab navigation -->
-    <div class="um-tabs" role="tablist" aria-label="User Management Views">
-      <button
-        type="button"
-        role="tab"
-        id="um-tab-dir"
-        class="um-tab ${isDirectory ? "active" : ""}"
-        aria-selected="${isDirectory ? "true" : "false"}"
-        onclick="setUserMgmtTab('directory')"
-      >
-        <span style="display:inline-flex;align-items:center">${LINE_ICONS.cust}</span> User Directory
-      </button>
-      <button
-        type="button"
-        role="tab"
-        id="um-tab-matrix"
-        class="um-tab ${!isDirectory ? "active" : ""}"
-        aria-selected="${!isDirectory ? "true" : "false"}"
-        onclick="setUserMgmtTab('matrix')"
-      >
-        <span style="display:inline-flex;align-items:center">${LINE_ICONS.users}</span> Permissions Matrix
-      </button>
-    </div>
-
-    ${isDirectory ? `
-      <!-- Toolbar -->
-      <div class="um-toolbar">
-        <div class="um-toolbar-left">
-          <div class="um-search-wrap">
-            <span class="um-search-icon" style="display:inline-flex;align-items:center">${LINE_ICONS.insp}</span>
-            <input
-              id="user-search-input"
-              class="um-search-input"
-              type="text"
-              placeholder="Search by Name or Username..."
-              value="${escHtml(userSearch)}"
-              oninput="onUserSearchInput(this.value)"
-            />
-          </div>
-        </div>
-
-        <button type="button" class="btn-add-user" data-demo="true" onclick="showDemoNotice()">
-          <span style="display:inline-flex;align-items:center">${ICONS.userPlus}</span> Add New User
-        </button>
-      </div>
-
-      <!-- Table Container -->
-      <div class="um-table-wrap">
-        <table class="um-table">
-          <thead>
-            <tr>
-              <th>EMPLOYEE NAME &amp; USERNAME</th>
-              <th>ASSIGNED ROLE</th>
-              <th>ACCOUNT STATUS</th>
-              <th>LAST LOGIN DATE/TIME</th>
-              <th class="r">ACTIONS</th>
-            </tr>
-          </thead>
-          <tbody id="user-table-body">
-            ${getUserTableRowsHtml()}
-          </tbody>
-        </table>
-      </div>
-    ` : `
-      ${getPermissionsMatrixHtml()}
-    `}
-  `;
 }
 
 /* ==========================================================
@@ -11795,14 +11346,34 @@ function initAuth() {
     // c. First allowed page (dash if allowed, else allowed[0])
     // d. renderNoAccess()
     const allowed = getRoleNav(activeRole);
-    const hashKey = (typeof window !== "undefined" && window.location && window.location.hash
+    let hashKey = (typeof window !== "undefined" && window.location && window.location.hash
       ? window.location.hash.replace(/^#/, "").trim()
       : "");
 
+    // If URL hash points to removed "users" page, clean hash and route to dash
+    if (hashKey === "users") {
+      hashKey = "";
+      if (typeof window !== "undefined" && window.location) {
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState(null, "", (window.location.pathname || "") + (window.location.search || "") + "#dash");
+        } else {
+          window.location.hash = "dash";
+        }
+      }
+    }
+
+    // If saved session view was the removed "users" page, reset to dash
+    if (session && session.view === "users") {
+      session.view = "dash";
+      try {
+        localStorage.setItem("moto1_session", JSON.stringify(session));
+      } catch (e) {}
+    }
+
     let targetPage = null;
-    if (hashKey && canOpen(hashKey)) {
+    if (hashKey && hashKey !== "users" && canOpen(hashKey)) {
       targetPage = hashKey;
-    } else if (session.view && canOpen(session.view)) {
+    } else if (session.view && session.view !== "users" && canOpen(session.view)) {
       targetPage = session.view;
     } else if ((hashKey === "qlabor" || session.view === "qlabor") && canOpen("pos")) {
       targetPage = "pos";
@@ -11851,6 +11422,10 @@ if (typeof window !== "undefined") {
     const u = getCurrentUser();
     if (!u) return;
     const hashKey = (window.location && window.location.hash ? window.location.hash : "").replace(/^#/, "").trim();
+    if (hashKey === "users") {
+      go("dash");
+      return;
+    }
     if (hashKey && hashKey !== view) {
       if (canOpen(hashKey)) {
         go(hashKey);

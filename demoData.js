@@ -1,5 +1,5 @@
 /**
- * Fixed Demo Data Seed for MotoShop prototype.
+ * Fixed Demo Data Seed for MotorCare prototype.
  * Loaded on every page load to provide consistent demo states across Active Repairs, POS, and Catalogs.
  */
 
