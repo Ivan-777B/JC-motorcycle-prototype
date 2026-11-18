@@ -2917,6 +2917,9 @@ function go(v) {
     billFilter = "all";
     catFilter = "all";
     custSearch = "";
+    if (v !== "rep") {
+      repStatusFilter = "all";
+    }
     if (v === "audit") {
       auditSearch = "";
       auditPeriod = "7days";
@@ -3214,6 +3217,48 @@ function inDateRange(dateStr, filterKey, customFrom = hisFrom, customTo = hisTo)
 }
 
 /**
+ * Multi-mechanic sample assignments for Service History demo display.
+ * Maps work order unique ID to an array of assigned mechanic display names.
+ */
+const HIS_SAMPLE_MECHANICS = {
+  w15: ["Larpus", "Hiyo"]
+};
+
+/**
+ * Returns an array of assigned mechanic display names for a Service History job.
+ * For sample job w15 (NOP-9967), returns ["Larpus", "Hiyo"].
+ * For other jobs, returns [job.mech] or ["—"] if unassigned.
+ * @param {Object} job - Work order object.
+ * @returns {Array<string>} Array of mechanic display names.
+ */
+function getHisMechanics(job) {
+  if (!job) return ["—"];
+  if (job.id && HIS_SAMPLE_MECHANICS[job.id]) {
+    return HIS_SAMPLE_MECHANICS[job.id];
+  }
+  if (job.mech && job.mech.trim() && job.mech.trim().toLowerCase() !== "unassigned") {
+    return [job.mech.trim()];
+  }
+  return ["—"];
+}
+
+/**
+ * Renders HTML for assigned mechanic(s) in Service History table cells and record modal.
+ * Shows single name in bold text, or two names stacked with ~4px gap.
+ * @param {Object} job - Work order object.
+ * @returns {string} HTML string.
+ */
+function renderAssignedMechanicsHtml(job) {
+  const mechs = getHisMechanics(job);
+  if (mechs.length <= 1) {
+    return `<span style="font-weight:600;color:var(--text-primary)">${escHtml(mechs[0] || "—")}</span>`;
+  }
+  return `<div style="display:flex;flex-direction:column;gap:4px">
+    ${mechs.map((m) => `<span style="font-weight:600;color:var(--text-primary)">${escHtml(m)}</span>`).join("")}
+  </div>`;
+}
+
+/**
  * Returns a sorted array of unique mechanic names found across all work orders.
  * @returns {Array<string>} Alphabetically sorted array of mechanic names.
  */
@@ -3224,9 +3269,11 @@ function getUniqueMechanics() {
     if (u.name && u.name.trim()) set.add(u.name.trim());
   });
   D.wo.forEach((o) => {
-    if (o.mech && o.mech.trim() && o.mech.trim().toLowerCase() !== "unassigned") {
-      set.add(o.mech.trim());
-    }
+    getHisMechanics(o).forEach((m) => {
+      if (m && m !== "—" && m.trim().toLowerCase() !== "unassigned") {
+        set.add(m.trim());
+      }
+    });
   });
   return Array.from(set).sort((a, b) => a.localeCompare(b));
 }
@@ -3250,8 +3297,11 @@ function getFilteredHistory() {
 
   return base.filter((o) => {
     // 1. Mechanic filter
-    if (hisMech !== "all" && (o.mech || "").trim().toLowerCase() !== hisMech.toLowerCase()) {
-      return false;
+    if (hisMech !== "all") {
+      const mechs = getHisMechanics(o);
+      if (!mechs.some((m) => m.toLowerCase() === hisMech.toLowerCase())) {
+        return false;
+      }
     }
 
     // 2. Date range filter
@@ -3271,7 +3321,8 @@ function getFilteredHistory() {
     const phone = c && c.phone ? c.phone.toLowerCase() : "";
     const model = b ? `${b.make || ""} ${b.model || ""}`.toLowerCase() : "";
     const jobId = o.id ? o.id.toLowerCase() : "";
-    const mech = o.mech ? o.mech.toLowerCase() : "";
+    const mechs = getHisMechanics(o);
+    const mechMatch = mechs.some((m) => m.toLowerCase().includes(q));
     const rawDate = dateVal.toLowerCase();
     const formattedDate = formatJobDate(dateVal).toLowerCase();
     const jo = getJobNumber(o).toLowerCase();
@@ -3284,7 +3335,7 @@ function getFilteredHistory() {
       model.includes(q) ||
       jobId.includes(q) ||
       jo.includes(q) ||
-      mech.includes(q) ||
+      mechMatch ||
       rawDate.includes(q) ||
       formattedDate.includes(q) ||
       cancelReason.includes(q)
@@ -3386,7 +3437,7 @@ function getHisResultsHtml() {
         <tr>
           <th>DATE &amp; TIME</th>
           <th>VEHICLE &amp; CUSTOMER INFO</th>
-          <th>MARKED BY</th>
+          <th>ASSIGNED MECHANIC</th>
           <th>PRIMARY ISSUE / DIAGNOSIS</th>
           <th class="r">TOTAL COST (₱)</th>
           <th class="r">ACTIONS</th>
@@ -3427,7 +3478,7 @@ function getHisResultsHtml() {
               <div style="font-weight:600;font-size:13px;color:var(--text-primary);margin-top:2px">${c ? c.name : "—"}</div>
             </td>
             <td>
-              <span style="font-weight:600;color:var(--text-primary)">${(o.mech && o.mech !== "Unassigned") ? escHtml(o.mech) : "-"}</span>
+              ${renderAssignedMechanicsHtml(o)}
             </td>
             <td>
               <div style="font-weight:700;color:var(--text-primary)" title="${svcNames.replace(/"/g, '&quot;')}">${truncSvcNames}</div>
@@ -3452,6 +3503,114 @@ function getHisResultsHtml() {
       </tbody>
     </table>
   </div>`;
+}
+
+/**
+ * Static recent quick fix records moved from Quick Labor to Service History.
+ */
+const RECENT_QUICK_FIX_RECORDS = [
+  {
+    id: "ql-0012",
+    jo: "QL-0012",
+    date: "Nov 17, 2026 · 10:30 AM",
+    staff: "Pedro Reyes",
+    items: "2 items · Change Oil, Tune-up",
+    amount: "₱500.00",
+    method: "Cash",
+    receiptId: "w-bill-4",
+    isVoided: false
+  },
+  {
+    id: "ql-0011",
+    jo: "QL-0011",
+    date: "Nov 16, 2026 · 03:15 PM",
+    staff: "Maria Santos",
+    items: "3 items · Change Oil, Tune-up, Oil Filter",
+    amount: "₱680.00",
+    method: "GCash",
+    receiptId: "w-bill-4",
+    isVoided: false
+  },
+  {
+    id: "ql-0010",
+    jo: "QL-0010",
+    date: "Nov 16, 2026 · 11:20 AM",
+    staff: "Jose Rizal",
+    reason: "Customer cancelled",
+    amount: "₱350.00",
+    method: "Cash",
+    receiptId: null,
+    isVoided: true
+  }
+];
+
+/**
+ * Builds HTML for a single recent quick fix card.
+ * @param {Object} item - Quick fix record object.
+ * @returns {string} HTML string.
+ */
+function renderQuickFixCard(item) {
+  if (item.isVoided) {
+    return `
+      <div class="pos-sale-row is-voided" style="opacity:0.75;background:#F8FAFC;margin-bottom:0">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px">
+            <b>${escHtml(item.jo)}</b>
+            <span class="pos-void-badge">VOIDED</span>
+            <span style="font-size:11px;color:var(--text-muted)">${escHtml(item.date)}</span>
+          </div>
+          <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">
+            Staff · <span style="font-weight:600;color:var(--text-primary)">${escHtml(item.staff)}</span>
+          </div>
+          <div style="font-size:11px;color:var(--danger, #DC2626);margin-top:2px;font-style:italic">
+            Voided: "${escHtml(item.reason || "Cancelled")}"
+          </div>
+        </div>
+        <div style="text-align:right;margin-left:8px">
+          <div style="font-weight:800;font-size:13px;text-decoration:line-through;color:var(--text-muted)">${escHtml(item.amount)}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">${escHtml(item.method)}</div>
+          <div style="display:flex;gap:4px;justify-content:flex-end">
+            <button type="button" class="btn g sm" data-demo="true" onclick="showDemoNotice()">Voided</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  return `
+    <div class="pos-sale-row" style="margin-bottom:0">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px">
+          <b>${escHtml(item.jo)}</b>
+          <span style="font-size:11px;color:var(--text-muted)">${escHtml(item.date)}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">
+          Staff · <span style="font-weight:600;color:var(--text-primary)">${escHtml(item.staff)}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">
+          ${escHtml(item.items)}
+        </div>
+      </div>
+      <div style="text-align:right;margin-left:8px">
+        <div style="font-weight:800;font-size:13px;color:#0F172A">${escHtml(item.amount)}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">${escHtml(item.method)}</div>
+        <div style="display:flex;gap:4px;justify-content:flex-end">
+          <button type="button" class="btn g sm" onclick="openReceipt('${item.receiptId}')" title="View receipt">Receipt</button>
+          <button type="button" class="btn g sm" style="color:var(--danger, #DC2626)" data-demo="true" onclick="showDemoNotice()" title="Void fix">Void</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Builds HTML string for the grid of recent quick fix records on Service History.
+ * @returns {string} HTML string.
+ */
+function getRecentQuickFixHtml() {
+  if (!RECENT_QUICK_FIX_RECORDS || !RECENT_QUICK_FIX_RECORDS.length) {
+    return `<div class="empty" style="padding:16px;color:var(--text-muted)">No quick fix records yet.</div>`;
+  }
+  return RECENT_QUICK_FIX_RECORDS.map(renderQuickFixCard).join("");
 }
 
 /**
@@ -4091,6 +4250,7 @@ function getInspSampleEstimatesTabHtml() {
           <div class="insp-field-value">+63 917 123 4567</div>
         </div>
       </div>
+      <div class="insp-save-info-pill">Save info</div>
     </div>
 
     <!-- Section E: Send to Service Status pill -->
@@ -4326,12 +4486,465 @@ function setRepStatusFilter(filter) {
   }
 }
 
+/* ==========================================================
+   ADMIN DASHBOARD HELPERS
+   ========================================================== */
+
+/**
+ * Computes today's actual paid revenue, labor earnings, and parts billed.
+ * Aggregates paid completed work orders, today's advance payments, Quick Sales, and Quick Labor.
+ * Strictly excludes voided, reversed, and cancelled records.
+ * @returns {{ revenue: number, labor: number, parts: number }}
+ */
+function getTodayRevenueData() {
+  const todayStr = today();
+  let revenue = 0;
+  let labor = 0;
+  let parts = 0;
+
+  // 1. Paid completed work orders today (matches Reports JOBS COMPLETED & REVENUE)
+  const countableWos = (Array.isArray(D.wo) ? D.wo : []).filter(isCountableJob);
+  countableWos.forEach((o) => {
+    if (o.st === "Completed") {
+      const isPaidToday = (o.done && o.done.slice(0, 10) === todayStr) ||
+                          (o.pay && o.pay.paidAt && o.pay.paidAt.slice(0, 10) === todayStr);
+      if (isPaidToday) {
+        const brk = getOrderTotals(o);
+        labor += (Number(brk.labor) || 0);
+        parts += (Number(brk.parts) || 0);
+        revenue += (Number(brk.total) || 0);
+      }
+    }
+  });
+
+  // 2. Quick Sales and Quick Labor recorded today in D.sales (excluding voided)
+  const sales = Array.isArray(D.sales) ? D.sales : [];
+  sales.forEach((s) => {
+    if (!s) return;
+    const isVoided = Boolean(s.voided || s.isVoided || s.st === "Voided" || s.st === "Cancelled");
+    if (isVoided) return;
+    const saleDate = (s.at || s.date || "").slice(0, 10);
+    if (saleDate === todayStr) {
+      const amt = Number(s.amount || s.total) || 0;
+      if (amt > 0) {
+        revenue += amt;
+        const isLabor = s.type === "QUICK LABOR" || s.type === "Labor" || Boolean(s.isLabor);
+        if (isLabor) {
+          const laborPart = Number(s.laborSubtotal) || amt;
+          const partsPart = Number(s.partsSubtotal) || 0;
+          labor += laborPart;
+          parts += partsPart;
+        } else {
+          parts += amt;
+        }
+      }
+    }
+  });
+
+  return {
+    revenue: Math.round(revenue),
+    labor: Math.round(labor),
+    parts: Math.round(parts)
+  };
+}
+
+/**
+ * Builds HTML for the "Attention Required" feed on Admin Dashboard.
+ * Lists active jobs needing action (newest first, up to 6) with view all link to Active Repairs.
+ * A job qualifies if status is Awaiting Parts/Approval, Checking, or has no mechanic assigned.
+ * @param {Array<Object>} countableWos
+ * @returns {string} HTML string.
+ */
+function getDashAttentionRequiredHtml(countableWos) {
+  const list = countableWos.filter((o) => {
+    if (!isCountableJob(o)) return false;
+    if (o.st === "Completed" || o.st === "Cancelled" || o.st === "Ready for Pickup") return false;
+    const isUnassigned = !o.mech || o.mech === "Unassigned" || o.mech.trim() === "";
+    const isAwaiting = o.st === "Awaiting Parts/Approval";
+    const isChecking = o.st === "Checking";
+    return isUnassigned || isAwaiting || isChecking;
+  });
+
+  // Sort newest first, up to 6
+  list.sort((a, b) => (b.at || "").localeCompare(a.at || "") || (b.id || "").localeCompare(a.id || ""));
+  const displayItems = list.slice(0, 6);
+
+  if (!displayItems.length) {
+    return `
+      <div class="card dash-panel">
+        <div class="dash-panel-header">
+          <div class="dash-panel-title-wrap">
+            <span class="dash-panel-icon">${LINE_ICONS.rep}</span>
+            <h2 class="dash-panel-title">Attention Required</h2>
+          </div>
+          <a href="javascript:void(0)" onclick="repStatusFilter='all';go('rep')" class="dash-view-all">View all &rarr;</a>
+        </div>
+        <div class="dash-panel-body">
+          <div class="dash-empty-state">Nothing needs attention right now.</div>
+        </div>
+      </div>
+    `;
+  }
+
+  const rowsHtml = displayItems.map((o) => {
+    const b = o.bid ? bike(o.bid) : null;
+    const plate = b && b.plate ? b.plate : (o.plate || "NO PLATE");
+    const model = b ? `${b.make || ""} ${b.model || ""}`.trim() : (o.model || "");
+
+    const isUnassigned = !o.mech || o.mech === "Unassigned" || o.mech.trim() === "";
+    let reasonText = "";
+    let reasonCls = "";
+    let btnLabel = "";
+
+    if (isUnassigned) {
+      reasonText = "No mechanic";
+      reasonCls = "dash-reason-unassigned";
+      btnLabel = "Assign";
+    } else if (o.st === "Awaiting Parts/Approval") {
+      reasonText = "Awaiting parts/approval";
+      reasonCls = "dash-reason-awaiting";
+      btnLabel = "Update Quote";
+    } else {
+      reasonText = "Final check";
+      reasonCls = "dash-reason-checking";
+      btnLabel = "View Job Card";
+    }
+
+    const itemLines = typeof lines === "function" ? lines(o) : (o.items || []);
+    const tot = typeof total === "function" ? total(o) : (o.total || 0);
+    const totalText = (!itemLines || itemLines.length === 0 || !tot || tot <= 0) ? "TBD" : P(tot);
+
+    return `
+      <div class="dash-list-row">
+        <div class="dash-row-left">
+          <div class="dash-row-main">
+            <b class="dash-plate" title="${escHtml(plate)}">${escHtml(plate)}</b>
+            ${model ? `<span class="dash-model" title="${escHtml(model)}">${escHtml(model)}</span>` : ""}
+          </div>
+          <div class="dash-row-tags">
+            ${badge(o.st)}
+            <span class="dash-reason-tag ${reasonCls}">${escHtml(reasonText)}</span>
+          </div>
+        </div>
+        <div class="dash-row-right">
+          <span class="dash-row-total">${totalText}</span>
+          <button
+            type="button"
+            class="btn sm dash-action-btn"
+            onclick="openInspModal('${o.id}')"
+            aria-label="${btnLabel} for ${escHtml(plate)}"
+          >
+            ${btnLabel}
+          </button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <div class="card dash-panel">
+      <div class="dash-panel-header">
+        <div class="dash-panel-title-wrap">
+          <span class="dash-panel-icon">${LINE_ICONS.rep}</span>
+          <h2 class="dash-panel-title">Attention Required</h2>
+        </div>
+        <a href="javascript:void(0)" onclick="repStatusFilter='all';go('rep')" class="dash-view-all">View all &rarr;</a>
+      </div>
+      <div class="dash-panel-body">
+        ${rowsHtml}
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Builds HTML for "Mechanic Floor Status" card on Admin Dashboard.
+ * Displays mechanic roster with active workload, Busy/Free badges, and unassigned queue.
+ * @param {Array<Object>} countableWos
+ * @returns {string} HTML string.
+ */
+function getDashMechanicFloorStatusHtml(countableWos) {
+  const users = typeof loadUsers === "function" ? loadUsers() : [];
+  const mechanics = users.filter((u) => u && u.role === "mechanic" && u.active !== false);
+
+  const unassignedJobs = countableWos.filter((o) => {
+    if (!isCountableJob(o)) return false;
+    if (o.st === "Completed" || o.st === "Cancelled" || o.st === "Ready for Pickup") return false;
+    return !o.mech || o.mech === "Unassigned" || o.mech.trim() === "";
+  });
+
+  const unassignedPlates = unassignedJobs.map((o) => {
+    const b = o.bid ? bike(o.bid) : null;
+    return (b && b.plate) || o.plate || "NO PLATE";
+  });
+  const unassignedPlatesText = unassignedPlates.length ? unassignedPlates.join(", ") : "None";
+
+  let bodyContent = "";
+  if (!mechanics.length) {
+    bodyContent = `<div class="dash-empty-state">No mechanics added yet.</div>`;
+  } else {
+    const mechRows = mechanics.map((u) => {
+      const mechJobs = countableWos.filter((o) => {
+        if (!isCountableJob(o)) return false;
+        const st = o.st;
+        if (st !== "In Progress" && st !== "Diagnosing" && st !== "Checking" && st !== "Awaiting Parts/Approval") return false;
+        return Boolean(o.mech && o.mech.trim().toLowerCase() === u.name.trim().toLowerCase());
+      });
+
+      const platesList = mechJobs.map((o) => {
+        const b = o.bid ? bike(o.bid) : null;
+        return (b && b.plate) || o.plate || "NO PLATE";
+      });
+      const platesText = platesList.join(", ");
+      const isBusy = mechJobs.length > 0;
+      const countLabel = `${mechJobs.length} active ${mechJobs.length === 1 ? "job" : "jobs"}`;
+
+      return `
+        <div class="dash-list-row">
+          <div class="dash-row-left">
+            <b class="dash-mechanic-name">${escHtml(u.name)}</b>
+            <div class="dash-mechanic-jobs" title="${escHtml(platesText ? countLabel + " · " + platesText : countLabel)}">
+              ${countLabel}${platesText ? ` · <span class="dash-plates-text">${escHtml(platesText)}</span>` : ""}
+            </div>
+          </div>
+          <div class="dash-row-right">
+            ${isBusy ? `<span class="dash-badge-busy">Busy</span>` : `<span class="dash-badge-free">Free</span>`}
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    bodyContent = mechRows;
+  }
+
+  const unassignedRowHtml = `
+    <div class="dash-unassigned-row">
+      <div class="dash-row-left">
+        <b style="font-size:13px;color:var(--text-primary)">Unassigned queue</b>
+        <div class="dash-mechanic-jobs" title="${escHtml(unassignedPlatesText)}">
+          ${unassignedJobs.length} active ${unassignedJobs.length === 1 ? "job" : "jobs"}${unassignedPlates.length ? ` · <span class="dash-plates-text">${escHtml(unassignedPlatesText)}</span>` : ""}
+        </div>
+      </div>
+      <div class="dash-row-right">
+        <span class="dash-badge-unassigned">${unassignedJobs.length}</span>
+      </div>
+    </div>
+  `;
+
+  return `
+    <div class="card dash-panel">
+      <div class="dash-panel-header">
+        <div class="dash-panel-title-wrap">
+          <span class="dash-panel-icon">${LINE_ICONS.rep}</span>
+          <h2 class="dash-panel-title">Mechanic Floor Status</h2>
+        </div>
+      </div>
+      <div class="dash-panel-body">
+        ${bodyContent}
+        ${unassignedRowHtml}
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Builds HTML for "Today's Sales" card on Admin Dashboard.
+ * Lists Quick Sales and Quick Labor recorded today (excluding voided), newest first, up to 6.
+ * @returns {string} HTML string.
+ */
+function getDashTodaySalesHtml() {
+  const todayStr = today();
+  const sales = (Array.isArray(D.sales) ? D.sales : []).filter((s) => {
+    if (!s) return false;
+    const isVoided = Boolean(s.voided || s.isVoided || s.st === "Voided" || s.st === "Cancelled");
+    if (isVoided) return false;
+    const saleDate = (s.at || s.date || "").slice(0, 10);
+    return saleDate === todayStr;
+  });
+
+  // Sort newest first, up to 6
+  sales.sort((a, b) => (b.at || b.date || "").localeCompare(a.at || a.date || ""));
+  const displaySales = sales.slice(0, 6);
+
+  if (!displaySales.length) {
+    return `
+      <div class="card dash-panel">
+        <div class="dash-panel-header">
+          <div class="dash-panel-title-wrap">
+            <span class="dash-panel-icon">${LINE_ICONS.pos}</span>
+            <h2 class="dash-panel-title">Today's Sales</h2>
+          </div>
+        </div>
+        <div class="dash-panel-body">
+          <div class="dash-empty-state">No sales yet today.</div>
+        </div>
+      </div>
+    `;
+  }
+
+  let todaySalesTotal = 0;
+  sales.forEach((s) => {
+    todaySalesTotal += (Number(s.amount || s.total) || 0);
+  });
+
+  const rowsHtml = displaySales.map((s) => {
+    const isLabor = s.type === "QUICK LABOR" || s.type === "Labor" || Boolean(s.isLabor);
+    const typeBadge = isLabor
+      ? `<span class="badge" style="background:#EEF2FF;color:#4338CA;border-color:#C7D2FE">Labor</span>`
+      : `<span class="badge" style="background:#F0FDF4;color:#15803D;border-color:#BBF7D0">Sale</span>`;
+
+    const timeStr = formatJobTime(s.at || s.date || "");
+    const amt = Number(s.amount || s.total) || 0;
+
+    let summary = s.summary || "";
+    if (!summary && Array.isArray(s.items)) {
+      summary = s.items.map((it) => (typeof it === "string" ? it : (it.name || it.label || ""))).filter(Boolean).join(", ");
+    }
+    if (!summary) {
+      summary = typeof s.items === "string" ? s.items : (isLabor ? "Quick Labor Service" : "Counter Sale");
+    }
+
+    return `
+      <div class="dash-list-row">
+        <div class="dash-row-left">
+          <div class="dash-row-main">
+            ${typeBadge}
+            <span class="dash-time">${escHtml(timeStr || "Today")}</span>
+          </div>
+          <div class="dash-summary-line" title="${escHtml(summary)}">${escHtml(summary)}</div>
+        </div>
+        <div class="dash-row-right">
+          <b class="dash-amount">${P(amt)}</b>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <div class="card dash-panel">
+      <div class="dash-panel-header">
+        <div class="dash-panel-title-wrap">
+          <span class="dash-panel-icon">${LINE_ICONS.pos}</span>
+          <h2 class="dash-panel-title">Today's Sales</h2>
+        </div>
+      </div>
+      <div class="dash-panel-body">
+        ${rowsHtml}
+        <div class="dash-sales-footer">
+          <span>Today's Total:</span>
+          <b>${P(todaySalesTotal)}</b>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Builds HTML for "Ready for Pickup / Pending Settlement" card on Admin Dashboard.
+ * Lists jobs in Ready for Pickup or with balance due (up to 6) with "Open in POS" button.
+ * Exact set agrees with Pending Payments KPI card.
+ * @param {Array<Object>} pendingPaymentJobs
+ * @returns {string} HTML string.
+ */
+function getDashPendingSettlementHtml(pendingPaymentJobs) {
+  const displayJobs = pendingPaymentJobs.slice(0, 6);
+
+  if (!displayJobs.length) {
+    return `
+      <div class="card dash-panel">
+        <div class="dash-panel-header">
+          <div class="dash-panel-title-wrap">
+            <span class="dash-panel-icon">${ICONS.money}</span>
+            <h2 class="dash-panel-title">Ready for Pickup / Pending Settlement</h2>
+          </div>
+        </div>
+        <div class="dash-panel-body">
+          <div class="dash-empty-state">No pending payments.</div>
+        </div>
+      </div>
+    `;
+  }
+
+  const rowsHtml = displayJobs.map((o) => {
+    const b = o.bid ? bike(o.bid) : null;
+    const c = b ? own(b) : null;
+    const plate = b && b.plate ? b.plate : (o.plate || "NO PLATE");
+    const custName = c && c.name ? c.name : (o.customer || "Walk-in Customer");
+
+    const tot = typeof total === "function" ? total(o) : (Number(o.total) || 0);
+    let adv = 0;
+    if (typeof o.advances === "number") adv = o.advances;
+    else if (Array.isArray(o.advances)) {
+      adv = o.advances.reduce((s, a) => s + (typeof a === "number" ? a : (Number(a.amount || a.a) || 0)), 0);
+    }
+    const balanceDue = Math.max(0, tot - adv);
+
+    return `
+      <div class="dash-list-row">
+        <div class="dash-row-left">
+          <div class="dash-row-main">
+            <b class="dash-plate" title="${escHtml(plate)}">${escHtml(plate)}</b>
+            <span class="dash-customer" title="${escHtml(custName)}">${escHtml(custName)}</span>
+          </div>
+          <div class="dash-row-tags">
+            ${badge(o.st)}
+            <span class="dash-due-tag">Due: ${P(balanceDue)}</span>
+          </div>
+        </div>
+        <div class="dash-row-right">
+          ${canOpen("bill") ? `
+            <button
+              type="button"
+              class="btn sm dash-action-btn"
+              onclick="openJobInPos('${o.id}')"
+              aria-label="Open ${escHtml(plate)} in POS"
+            >
+              Open in POS
+            </button>
+          ` : ""}
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <div class="card dash-panel">
+      <div class="dash-panel-header">
+        <div class="dash-panel-title-wrap">
+          <span class="dash-panel-icon">${ICONS.money}</span>
+          <h2 class="dash-panel-title">Ready for Pickup / Pending Settlement</h2>
+        </div>
+      </div>
+      <div class="dash-panel-body">
+        ${rowsHtml}
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Opens Transactions & Billing with the target work order or transaction invoice opened.
+ * @param {string} jobId - Work order or transaction record ID.
+ */
+function openJobInPos(jobId) {
+  if (!canOpen("bill")) return;
+  const o = g("wo", jobId) || (Array.isArray(SEEDED_BILL_ORDERS) ? SEEDED_BILL_ORDERS.find((x) => x.id === jobId) : null);
+  const b = o && o.bid ? bike(o.bid) : null;
+  const searchVal = (b && b.plate) || (o && (o.plate || o.txnId || o.jo || o.id)) || "";
+  go("bill");
+  if (searchVal) {
+    onBillSearchInput(searchVal);
+  }
+  openReceipt(jobId);
+}
+
 /**
  * View renderers registry containing HTML generator functions for each screen.
  */
 const R = {
   /**
-   * Dashboard view: shows KPI summary cards and Service Status quick-access card.
+   * Dashboard view: shows KPI summary cards, Quick Actions bar, and operational monitoring feeds.
+   * Admin and Super Admin roles see the upgraded operational feeds; Mechanic sees the dedicated dashMechanic().
    * @returns {string} HTML string.
    */
   dash() {
@@ -4343,10 +4956,22 @@ const R = {
     const countableWos = (Array.isArray(D.wo) ? D.wo : []).filter(isCountableJob);
     // Active jobs: work orders not yet completed or ready for pickup
     const act = countableWos.filter((o) => o.st != "Completed" && o.st != "Ready for Pickup");
-    // Ready jobs: work orders awaiting customer settlement and vehicle pickup
-    const rdy = countableWos.filter((o) => o.st == "Ready for Pickup");
+    // Ready jobs / pending settlement: work orders awaiting customer settlement and vehicle pickup
+    const pendingPaymentJobs = countableWos.filter((o) => o.st == "Ready for Pickup");
     // Services finished today: work orders with done date matching today
     const dn = countableWos.filter((o) => (o.done || "").slice(0, 10) == today());
+
+    // Today's revenue calculation matching Reports logic
+    const revData = getTodayRevenueData();
+
+    // Counts matching Active Repairs
+    const unassignedCount = Array.isArray(REP_STATIC_CARDS)
+      ? REP_STATIC_CARDS.filter((c) => c.filter === "waiting" || c.markedBy === "—").length
+      : countableWos.filter((o) => o.st !== "Completed" && o.st !== "Cancelled" && o.st !== "Ready for Pickup" && (!o.mech || o.mech === "Unassigned" || o.mech.trim() === "")).length;
+
+    const awaitingCount = Array.isArray(REP_STATIC_CARDS)
+      ? REP_STATIC_CARDS.filter((c) => c.filter === "awaiting").length
+      : countableWos.filter((o) => o.st === "Awaiting Parts/Approval" && !o.cancel).length;
 
     const d = new Date().toLocaleDateString("en-US", {
       weekday: "long",
@@ -4362,23 +4987,92 @@ const R = {
 
     return `
       <div class="card top"><div><h1>Welcome back</h1><p>${roleLabel} | ${d}</p></div><span class="pill">● Saved on this device</span></div>
-      <div class="stats">${stat(LINE_ICONS.rep, "", "Service Status", act.length, "In progress")}${stat(ICONS.money, "", "PENDING PAYMENTS", rdy.length, "Ready for pickup")}${stat(ICONS.checkCircle, "", "TODAY’S SERVICES", dn.length, "Jobs finished")}</div>
-      ${canOpen("rep") ? `
-        <div class="dash-tiles-row">
+
+      <!-- KPI Row (4 columns on wide desktop, 2 on tablet, 1 on mobile) -->
+      <div class="stats dash-kpi-4col">
+        ${stat(LINE_ICONS.rep, "", "Service Status", act.length, "In progress")}
+        ${stat(ICONS.money, "", "PENDING PAYMENTS", pendingPaymentJobs.length, "Ready for pickup")}
+        ${stat(ICONS.checkCircle, "", "TODAY’S SERVICES", dn.length, "Jobs finished")}
+        ${stat(
+          ICONS.money,
+          "",
+          "TODAY’S REVENUE",
+          P(revData.revenue),
+          `<div class="dash-rev-sub">Labor ${P(revData.labor)} · Parts &amp; Fluids ${P(revData.parts)}</div>`
+        )}
+      </div>
+
+      <!-- Quick Actions Bar (replaces lone Service Status square) -->
+      <div class="dash-quick-actions" role="region" aria-label="Quick Actions">
+        ${canOpen("insp") ? `
           <button
             type="button"
-            class="dash-tile-btn"
-            onclick="go('rep')"
-            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('rep');}"
-            aria-label="Go to Service Status"
+            class="dash-qa-btn"
+            onclick="go('insp')"
+            aria-label="New Service Intake: Walk-in motorcycle"
           >
-            <div class="dash-tile-icon">
-              ${LINE_ICONS.rep}
+            <div class="dash-qa-icon">${LINE_ICONS.insp}</div>
+            <div class="dash-qa-text">
+              <div class="dash-qa-label">New Service Intake</div>
+              <div class="dash-qa-hint">Walk-in motorcycle</div>
             </div>
-            <div class="dash-tile-label">Service Status</div>
           </button>
-        </div>
-      ` : ""}
+        ` : ""}
+        ${canOpen("pos") ? `
+          <button
+            type="button"
+            class="dash-qa-btn"
+            onclick="posView='parts';go('pos')"
+            aria-label="Quick POS Sale: Parts &amp; fluids"
+          >
+            <div class="dash-qa-icon">${LINE_ICONS.pos}</div>
+            <div class="dash-qa-text">
+              <div class="dash-qa-label">Quick POS Sale</div>
+              <div class="dash-qa-hint">Parts &amp; fluids</div>
+            </div>
+          </button>
+        ` : ""}
+        ${canOpen("rep") ? `
+          <button
+            type="button"
+            class="dash-qa-btn"
+            onclick="repStatusFilter='all';go('rep')"
+            aria-label="Assign Mechanic: ${unassignedCount} unassigned jobs"
+          >
+            <div class="dash-qa-icon">${LINE_ICONS.rep}</div>
+            <div class="dash-qa-text">
+              <div class="dash-qa-label">Assign Mechanic</div>
+              <div class="dash-qa-hint">Unassigned jobs <span class="dash-qa-count">(${unassignedCount})</span></div>
+            </div>
+          </button>
+        ` : ""}
+        ${canOpen("rep") ? `
+          <button
+            type="button"
+            class="dash-qa-btn"
+            onclick="repStatusFilter='awaiting';go('rep')"
+            aria-label="Pending Approvals / Parts: ${awaitingCount} awaiting parts or approval"
+          >
+            <div class="dash-qa-icon">${ICONS.alert || LINE_ICONS.cat}</div>
+            <div class="dash-qa-text">
+              <div class="dash-qa-label">Pending Approvals / Parts</div>
+              <div class="dash-qa-hint">Awaiting parts or approval <span class="dash-qa-count">(${awaitingCount})</span></div>
+            </div>
+          </button>
+        ` : ""}
+      </div>
+
+      <!-- Middle Row: Attention Required & Mechanic Floor Status (2 columns desktop, 1 mobile) -->
+      <div class="dash-grid-2col">
+        ${getDashAttentionRequiredHtml(countableWos)}
+        ${getDashMechanicFloorStatusHtml(countableWos)}
+      </div>
+
+      <!-- Bottom Row: Today's Sales & Ready for Pickup / Pending Settlement (2 columns desktop, 1 mobile) -->
+      <div class="dash-grid-2col">
+        ${getDashTodaySalesHtml()}
+        ${getDashPendingSettlementHtml(pendingPaymentJobs)}
+      </div>
     `;
   },
 
@@ -4452,7 +5146,7 @@ const R = {
    * @returns {string} HTML string.
    */
   rep() {
-    repStatusFilter = "all";
+    if (!repStatusFilter) repStatusFilter = "all";
     return `<div class="card top">
   <div>
     <h1>Service Status</h1>
@@ -4603,7 +5297,13 @@ const R = {
   <div id="his-export-toast" class="his-export-toast"></div>
 </div>
 <div id="his-summary" class="his-summary-text">${getHisSummaryHtml()}</div>
-<div id="his-results" class="card his-table-card">${getHisResultsHtml()}</div>`;
+<div id="his-results" class="card his-table-card">${getHisResultsHtml()}</div>
+<div class="card his-quick-fix-card" id="his-quick-fix-card" style="margin-top:20px;padding:20px">
+  <div style="font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:12px">Recent Quick Fix Records</div>
+  <div class="his-quick-fix-grid" id="his-quick-fix-grid">
+    ${getRecentQuickFixHtml()}
+  </div>
+</div>`;
   },
 
   /**
@@ -4766,8 +5466,8 @@ function openRecord(id) {
         <div style="font-size:11px;color:var(--text-muted)">${formatJobTime(dateVal)}</div>
       </div>
       <div>
-        <div class="rec-field-label">Marked by</div>
-        <div class="rec-field-val">${(o.mech && o.mech !== "Unassigned") ? escHtml(o.mech) : "-"}</div>
+        <div class="rec-field-label">Assigned Mechanic</div>
+        <div class="rec-field-val">${renderAssignedMechanicsHtml(o)}</div>
       </div>
     </div>
 
@@ -4849,7 +5549,7 @@ function openRecord(id) {
             </div>
             <div class="rec-tl-body">
               <div><b>Services:</b> ${wSvcs || "—"}</div>
-              <div><b>Marked by:</b> ${(w.mech && w.mech !== "Unassigned") ? escHtml(w.mech) : "-"}</div>
+              <div><b>Assigned Mechanic:</b> ${getHisMechanics(w).map(escHtml).join(", ")}</div>
               ${w.note ? `<div><b>Notes:</b> ${w.note}</div>` : ""}
             </div>
           </div>
@@ -9863,79 +10563,6 @@ function getQuickLaborRightPanelHtml() {
       >
         Record Quick Fix · ${totalStr}
       </button>
-
-      <!-- Static Recent Quick Labor Records (3 rows) -->
-      <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:14px">
-        <div style="font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:10px">Recent Quick Fix Records</div>
-        <div class="pos-sale-row" style="margin-bottom:8px">
-          <div style="flex:1;min-width:0">
-            <div style="display:flex;align-items:center;gap:6px">
-              <b>QL-0012</b>
-              <span style="font-size:11px;color:var(--text-muted)">Nov 17, 2026 · 10:30 AM</span>
-            </div>
-            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">
-              Staff · <span style="font-weight:600;color:var(--text-primary)">Pedro Reyes</span>
-            </div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:2px">
-              2 items · Change Oil, Tune-up
-            </div>
-          </div>
-          <div style="text-align:right;margin-left:8px">
-            <div style="font-weight:800;font-size:13px;color:#0F172A">₱500.00</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Cash</div>
-            <div style="display:flex;gap:4px;justify-content:flex-end">
-              <button type="button" class="btn g sm" onclick="openReceipt('w-bill-4')" title="View receipt">Receipt</button>
-              <button type="button" class="btn g sm" style="color:var(--danger, #DC2626)" data-demo="true" onclick="showDemoNotice()" title="Void fix">Void</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="pos-sale-row" style="margin-bottom:8px">
-          <div style="flex:1;min-width:0">
-            <div style="display:flex;align-items:center;gap:6px">
-              <b>QL-0011</b>
-              <span style="font-size:11px;color:var(--text-muted)">Nov 16, 2026 · 03:15 PM</span>
-            </div>
-            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">
-              Staff · <span style="font-weight:600;color:var(--text-primary)">Maria Santos</span>
-            </div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:2px">
-              3 items · Change Oil, Tune-up, Oil Filter
-            </div>
-          </div>
-          <div style="text-align:right;margin-left:8px">
-            <div style="font-weight:800;font-size:13px;color:#0F172A">₱680.00</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">GCash</div>
-            <div style="display:flex;gap:4px;justify-content:flex-end">
-              <button type="button" class="btn g sm" onclick="openReceipt('w-bill-4')" title="View receipt">Receipt</button>
-              <button type="button" class="btn g sm" style="color:var(--danger, #DC2626)" data-demo="true" onclick="showDemoNotice()" title="Void fix">Void</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="pos-sale-row is-voided" style="opacity:0.75;background:#F8FAFC">
-          <div style="flex:1;min-width:0">
-            <div style="display:flex;align-items:center;gap:6px">
-              <b>QL-0010</b>
-              <span class="pos-void-badge">VOIDED</span>
-              <span style="font-size:11px;color:var(--text-muted)">Nov 16, 2026 · 11:20 AM</span>
-            </div>
-            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">
-              Staff · <span style="font-weight:600;color:var(--text-primary)">Jose Rizal</span>
-            </div>
-            <div style="font-size:11px;color:var(--danger, #DC2626);margin-top:2px;font-style:italic">
-              Voided: "Customer cancelled"
-            </div>
-          </div>
-          <div style="text-align:right;margin-left:8px">
-            <div style="font-weight:800;font-size:13px;text-decoration:line-through;color:var(--text-muted)">₱350.00</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Cash</div>
-            <div style="display:flex;gap:4px;justify-content:flex-end">
-              <button type="button" class="btn g sm" data-demo="true" onclick="showDemoNotice()">Voided</button>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   `;
 }
