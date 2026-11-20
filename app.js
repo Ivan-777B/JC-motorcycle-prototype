@@ -523,7 +523,7 @@ const SYSTEM_ADMIN_NAV = ["dash", "users", "settings", "sync", "audit"];
 
 // Default Primary & Admin Navigation pages each role can open.
 const DEFAULT_ROLE_NAV = {
-  admin:      ["dash", "cust", "insp", "rep", "pos", "ql", "cat", "bill", "his", "reports", "audit"],
+  admin:      ["dash", "cust", "insp", "rep", "pos", "ql", "cat", "bill", "his", "reports", "audit", "users"],
   superadmin: [...SYSTEM_ADMIN_NAV],
   mechanic:   ["dash", "insp", "rep", "pos", "ql", "bill"]
 };
@@ -532,7 +532,8 @@ const ROLE_NAV = DEFAULT_ROLE_NAV;
 /**
  * Returns allowed primary/admin navigation route keys for a role.
  * System Admin (superadmin) always uses the fixed SYSTEM_ADMIN_NAV list and ignores saved entries outside it.
- * For Admin and Mechanic, reads custom permissions matrix from "moto1_nav" (in-memory migration without rewriting saved data).
+ * For Admin, "dash" and "users" are fixed in code regardless of saved "moto1_nav" (in-memory migration without rewriting saved data).
+ * For Mechanic, "audit", "users", "settings", and "sync" are always excluded.
  * @param {string} role - System role key.
  * @returns {Array<string>} Allowed route keys.
  */
@@ -574,32 +575,36 @@ function getRoleNav(role) {
     if (!list.includes("audit")) list.push("audit");
   }
 
-  // Admin ALWAYS has access to Dashboard
-  if (role === "admin" && !list.includes("dash")) {
-    list.unshift("dash");
+  // Admin ALWAYS has access to Dashboard and Users (fixed in code, placed last after Reports and Audit)
+  if (role === "admin") {
+    if (!list.includes("dash")) {
+      list.unshift("dash");
+    }
+    list = list.filter((k) => k !== "users" && k !== "settings" && k !== "sync");
+    list.push("users");
   }
-  // Mechanic role is hard-coded to NEVER open or receive audit
+  // Mechanic role is hard-coded to NEVER open or receive audit or system pages
   if (role === "mechanic") {
-    list = list.filter((k) => k !== "audit");
+    list = list.filter((k) => k !== "audit" && k !== "users" && k !== "settings" && k !== "sync");
   }
-
-  // System Admin-only pages are never available to Admin or Mechanic
-  list = list.filter((k) => k !== "users" && k !== "settings" && k !== "sync");
 
   return list.filter((k) => validKeys.includes(k));
 }
 
 /**
  * Checks whether the active role has permission to open a specific navigation page.
- * System pages ("users", "settings", "sync") are restricted to System Admin (superadmin) only.
- * Mechanic is hard-coded to refuse "audit".
+ * "settings" and "sync" are restricted to System Admin only; "users" is restricted to System Admin and Admin.
+ * Mechanic is hard-coded to refuse "audit" and "users".
  * @param {string} pageKey - Route key to check.
  * @returns {boolean} True if the active role can open the page.
  */
 const canOpen = (pageKey) => {
   const u = getCurrentUser();
   if (!u) return false;
-  if ((pageKey === "users" || pageKey === "settings" || pageKey === "sync") && u.activeRole !== "superadmin") {
+  if ((pageKey === "settings" || pageKey === "sync") && u.activeRole !== "superadmin") {
+    return false;
+  }
+  if (pageKey === "users" && u.activeRole !== "superadmin" && u.activeRole !== "admin") {
     return false;
   }
   if (pageKey === "audit" && u.activeRole === "mechanic") return false;
@@ -3008,7 +3013,15 @@ function renderNav() {
     { id: "his",    icon: "his",     label: "Service History",          allowed: canOpen("his") }
   ].filter((it) => it.allowed);
 
-  const adminAllowed = V.filter((x) => ADMIN_NAV_KEYS.includes(x[0]) && canOpen(x[0]));
+  const u = getCurrentUser();
+  const activeRole = u ? u.activeRole : "";
+  const adminOrder = activeRole === "admin"
+    ? ["reports", "audit", "users"]
+    : ADMIN_NAV_KEYS;
+  const adminAllowed = adminOrder
+    .filter((k) => canOpen(k))
+    .map((k) => V.find((x) => x[0] === k))
+    .filter(Boolean);
 
   const navEl = $("nav");
   const navLabelEl = $("nav-label");
@@ -3049,10 +3062,10 @@ function renderNav() {
     if (adminNavEl) {
       adminNavEl.style.display = "";
       adminNavEl.innerHTML = adminAllowed
-        .map(
-          (x) =>
-            `<button class="nav-${x[0]} ${x[0] == view ? "on" : ""}" data-route="${x[0]}" data-group="admin" onclick="go('${x[0]}')" title="${x[2]}" aria-label="${x[2]}"><span>${ICONS[x[0]] || x[1]}</span><span class="nav-text">${x[2]}</span></button>`
-        )
+        .map((x) => {
+          const itemLabel = (x[0] === "users" && activeRole === "admin") ? "Users" : x[2];
+          return `<button class="nav-${x[0]} ${x[0] == view ? "on" : ""}" data-route="${x[0]}" data-group="admin" onclick="go('${x[0]}')" title="${escHtml(itemLabel)}" aria-label="${escHtml(itemLabel)}"><span>${ICONS[x[0]] || x[1]}</span><span class="nav-text">${escHtml(itemLabel)}</span></button>`;
+        })
         .join("");
     }
   }
@@ -3066,7 +3079,7 @@ function renderNav() {
 /**
  * Navigates to a view, updates sidebar active states, and renders the view content.
  * Resets search and filter state when navigating to another view (preserves hisBike for his view).
- * @param {string} v - Target view key ("dash", "cust", "insp", "rep", "cat", "his", "reports", "audit").
+ * @param {string} v - Target view key ("dash", "cust", "insp", "rep", "cat", "his", "reports", "audit", "users", "settings", "sync").
  */
 function go(v) {
   closeAccountSwitcher();
@@ -3075,7 +3088,8 @@ function go(v) {
     closeAppDrawer({ restoreFocus: false });
   }
   syncSidebarMode();
-  if ((v === "users" || v === "settings" || v === "sync") && !isSuper()) return;
+  if ((v === "settings" || v === "sync") && !isSuper()) return;
+  if (v === "users" && !isSuper() && !isAdmin()) return;
   if (!canOpen(v)) return;
   if (v === "audit") {
     const u = getCurrentUser();
@@ -5589,11 +5603,11 @@ const R = {
   },
 
   /**
-   * System Access & Permissions view (System Admin only).
+   * Users view: System Access & Permissions for System Admin, User Management (directory only) for Admin.
    * @returns {string} HTML string.
    */
   users() {
-    if (!isSuper() || !canOpen("users")) return renderNoAccess();
+    if ((!isSuper() && !isAdmin()) || !canOpen("users")) return renderNoAccess();
     return getUsersViewHtml();
   },
 
@@ -9927,12 +9941,12 @@ function setUserMgmtTab(tab) {
 }
 
 /**
- * Handles live search input on User Directory tab (System Admin only).
+ * Handles live search input on User Directory tab (System Admin and Admin).
  * Refreshes only the table rows to preserve input focus.
  * @param {string} val - Typed search string.
  */
 function onUserSearchInput(val) {
-  if (!isSuper() || !canOpen("users")) return;
+  if ((!isSuper() && !isAdmin()) || !canOpen("users")) return;
   userSearch = val;
   const tbody = $("user-table-body");
   if (tbody) tbody.innerHTML = getUserTableRowsHtml();
@@ -10069,11 +10083,11 @@ function getUserTableRowsHtml() {
 }
 
 /**
- * Opens view access modal showing role description and accessible pages for a user (System Admin only).
+ * Opens view access modal showing role description and accessible pages for a user (System Admin and Admin).
  * @param {string} userId
  */
 function openViewAccessModal(userId) {
-  if (!isSuper()) return;
+  if ((!isSuper() && !isAdmin()) || !canOpen("users")) return;
   const users = loadUsers();
   const u = users.find((x) => x.id === userId);
   if (!u) return;
@@ -10084,7 +10098,9 @@ function openViewAccessModal(userId) {
 
   const shownName = displayUserName(u.name);
   const allowedKeys = getRoleNav(u.role);
-  const allowedPages = V.filter((x) => allowedKeys.includes(x[0]));
+  const allowedPages = allowedKeys
+    .map((k) => V.find((x) => x[0] === k))
+    .filter(Boolean);
 
   let desc = "Standard user with assigned role access.";
   if (u.role === "superadmin") {
@@ -10121,12 +10137,15 @@ function openViewAccessModal(userId) {
       <div>
         <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Accessible Navigation Pages</div>
         <div style="display:flex;flex-direction:column;gap:6px">
-          ${allowedPages.map((p) => `
+          ${allowedPages.map((p) => {
+            const pageLabel = (u.role === "admin" && p[0] === "users") ? "Users" : p[2];
+            return `
             <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600">
               <span style="display:inline-flex;align-items:center">${ICONS[p[0]] || p[1]}</span>
-              <span>${escHtml(p[2])}</span>
+              <span>${escHtml(pageLabel)}</span>
             </div>
-          `).join("")}
+          `;
+          }).join("")}
         </div>
       </div>
     </div>
@@ -10153,12 +10172,13 @@ function closeViewAccessModal() {
 }
 
 /**
- * Builds HTML for the display-only Permissions Matrix tab table.
- * Shows System Admin's fixed system-page access alongside unchanged Admin and Mechanic rows.
+ * Builds HTML for the display-only Permissions Matrix tab table (System Admin only).
+ * Shows System Admin's fixed system-page access, Admin's access including Users, and unchanged Mechanic rows.
  * Never writes to "moto1_nav".
  * @returns {string} HTML string.
  */
 function getPermissionsMatrixHtml() {
+  if (!isSuper()) return "";
   const superNav = getRoleNav("superadmin");
   const adminNav = getRoleNav("admin");
   const mechNav = getRoleNav("mechanic");
@@ -10180,10 +10200,10 @@ function getPermissionsMatrixHtml() {
             const icon = route[1];
             const label = route[2];
 
-            const isSysOnly = key === "users" || key === "settings" || key === "sync";
+            const isSysOnly = key === "settings" || key === "sync";
             const isSuperLocked = SYSTEM_ADMIN_NAV.includes(key);
-            const isAdminLocked = key === "dash" || isSysOnly;
-            const isMechLocked = key === "audit" || isSysOnly;
+            const isAdminLocked = key === "dash" || key === "users" || isSysOnly;
+            const isMechLocked = key === "audit" || key === "users" || isSysOnly;
 
             const hasSuper = superNav.includes(key);
             const hasAdmin = adminNav.includes(key) && !isSysOnly;
@@ -10192,10 +10212,12 @@ function getPermissionsMatrixHtml() {
             const superTip = isSuperLocked ? `System Admin always has access to ${label}.` : "";
             const adminTip = key === "dash"
               ? "Admin must always have access to Dashboard."
-              : (isSysOnly ? `${label} is restricted to System Admin.` : "");
+              : (key === "users"
+                ? "Admin always has access to Users."
+                : (isSysOnly ? `${label} is restricted to System Admin.` : ""));
             const mechTip = key === "audit"
               ? "Audit is not available to Mechanics."
-              : (isSysOnly ? `${label} is restricted to System Admin.` : "");
+              : (isSysOnly || key === "users" ? `${label} is not available to Mechanics.` : "");
 
             return `
               <tr>
@@ -10269,18 +10291,26 @@ function getPermissionsMatrixHtml() {
 }
 
 /**
- * Generates the full HTML markup for the System Access & Permissions view (System Admin only).
+ * Generates the full HTML markup for the Users view (role-based).
+ * System Admin sees "System Access & Permissions" with both User Directory and Permissions Matrix tabs.
+ * Admin sees "User Management" with ONLY the User Directory (no tabs, no Permissions Matrix).
  * @returns {string} HTML markup string.
  */
 function getUsersViewHtml() {
-  if (!isSuper() || !canOpen("users")) {
+  const isSuperUser = isSuper();
+  if ((!isSuperUser && !isAdmin()) || !canOpen("users")) {
     return renderNoAccess();
   }
-  const isDirectory = userMgmtTab === "directory";
+  if (!isSuperUser) {
+    userMgmtTab = "directory";
+  }
+  const isDirectory = !isSuperUser || userMgmtTab === "directory";
 
-  return `
-    ${renderPageTitleCard("System Access & Permissions", "Manage system access and role permissions.")}
+  const titleCardHtml = isSuperUser
+    ? renderPageTitleCard("System Access & Permissions", "Manage system access and role permissions.")
+    : renderPageTitleCard("User Management", "Manage user accounts.");
 
+  const tabsHtml = isSuperUser ? `
     <!-- Tab navigation -->
     <div class="um-tabs" role="tablist" aria-label="System Access & Permissions Views">
       <button
@@ -10304,6 +10334,11 @@ function getUsersViewHtml() {
         <span style="display:inline-flex;align-items:center">${LINE_ICONS.users}</span> Permissions Matrix
       </button>
     </div>
+  ` : "";
+
+  return `
+    ${titleCardHtml}
+    ${tabsHtml}
 
     ${isDirectory ? `
       <!-- Toolbar -->
