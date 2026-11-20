@@ -31,7 +31,11 @@ const LINE_ICONS = {
   bill: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>`,
   his: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`,
   reports: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>`,
-  users: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`
+  users: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`,
+  settings: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`,
+  backup: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>`,
+  sync: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>`,
+  audit: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><polyline points="9 12 11 14 15 10"></polyline></svg>`
 };
 
 /**
@@ -52,6 +56,8 @@ const ICONS = {
   reports: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><rect x="2.5" y="12" width="4.5" height="7.5" rx="1.8" fill="var(--nav-reports-tint, #FBCFE8)"/><rect x="8.8" y="7.5" width="4.5" height="12" rx="1.8" fill="var(--nav-reports, #DB2777)"/><rect x="15" y="3.5" width="4.5" height="16" rx="1.8" fill="var(--nav-reports-tint, #FBCFE8)"/><path d="M4.5 10.5L11 6L17.2 2.8" stroke="var(--nav-reports, #DB2777)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="17.2" cy="2.8" r="1.8" fill="var(--nav-reports, #DB2777)"/></svg>`,
   audit: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 2.2L18.5 5.2v5.5c0 5-3.5 8.5-7.5 10-4-1.5-7.5-5-7.5-10V5.2L11 2.2z" fill="var(--nav-audit-tint, #99F6E4)" stroke="var(--nav-audit, #0F766E)" stroke-width="1.5" stroke-linejoin="round"/><polyline points="7.5 11 9.8 13.5 14.5 8.5" fill="none" stroke="var(--nav-audit, #0F766E)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   users: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M11 2.2L18.5 5.2v5.5c0 5-3.5 8.5-7.5 10-4-1.5-7.5-5-7.5-10V5.2L11 2.2z" fill="var(--nav-users-tint, #CBD5E1)" stroke="var(--nav-users, #475569)" stroke-width="1.5" stroke-linejoin="round"/><circle cx="11" cy="9.5" r="2.3" fill="var(--nav-users, #475569)"/><path d="M7.5 15.8c0-2 1.6-3.2 3.5-3.2s3.5 1.2 3.5 3.2" stroke="var(--nav-users, #475569)" stroke-width="1.8" stroke-linecap="round"/></svg>`,
+  settings: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M9.4 2.5h3.2l.5 2.1c.5.15 1 .35 1.45.6l1.85-1.1 2.25 2.25-1.1 1.85c.25.45.45.95.6 1.45l2.1.5v3.2l-2.1.5c-.15.5-.35 1-.6 1.45l1.1 1.85-2.25 2.25-1.85-1.1c-.45.25-.95.45-1.45.6l-.5 2.1H9.4l-.5-2.1c-.5-.15-1-.35-1.45-.6l-1.85 1.1-2.25-2.25 1.1-1.85a6.5 6.5 0 0 1-.6-1.45l-2.1-.5V9.4l2.1-.5c.15-.5.35-1 .6-1.45L3.35 5.6 5.6 3.35l1.85 1.1c.45-.25.95-.45 1.45-.6l.5-2.1z" fill="var(--nav-his-tint, #C7D2FE)" stroke="var(--nav-his, #4F46E5)" stroke-width="1.5" stroke-linejoin="round"/><circle cx="11" cy="11" r="2.8" fill="var(--bg-surface, #FFFFFF)" stroke="var(--nav-his, #4F46E5)" stroke-width="1.6"/></svg>`,
+  sync: `<svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true"><path d="M6.2 15.5h9.8a3.6 3.6 0 0 0 .5-7.15A5 5 0 0 0 6.8 6.8a3.8 3.8 0 0 0-.6 8.7z" fill="var(--nav-insp-tint, #A5F3FC)" stroke="var(--nav-insp, #0891B2)" stroke-width="1.5" stroke-linejoin="round"/><path d="M8.5 11.2a2.7 2.7 0 0 1 4.5-1.5" stroke="var(--nav-insp, #0891B2)" stroke-width="1.5" stroke-linecap="round"/><polyline points="12.2 8.2 13.4 9.7 11.6 10.1" fill="none" stroke="var(--nav-insp, #0891B2)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.5 12.6a2.7 2.7 0 0 1-4.5 1.5" stroke="var(--nav-insp, #0891B2)" stroke-width="1.5" stroke-linecap="round"/><polyline points="9.8 15.6 8.6 14.1 10.4 13.7" fill="none" stroke="var(--nav-insp, #0891B2)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   lock: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>`,
   lock24: `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>`,
   check: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
@@ -291,7 +297,7 @@ const DEMO_CANCELLED_JOBS = (() => {
       cancel: {
         reason: "",
         at: todayCancelAt,
-        by: "Super Admin",
+        by: "System Admin",
         prevStatus: "In Progress"
       }
     }
@@ -507,33 +513,36 @@ const save = () => {
  * Permissions are not enforced yet. Fill ROLES[role].permissions and make can() check them later.
  */
 const ROLES = {
-  superadmin: { label: "Super Admin", permissions: [] },
-  admin:      { label: "Admin",       permissions: [] },
-  mechanic:   { label: "Mechanic",    permissions: [] }
+  superadmin: { label: "System Admin", permissions: [] },
+  admin:      { label: "Admin",        permissions: [] },
+  mechanic:   { label: "Mechanic",     permissions: [] }
 };
+
+// Fixed navigation page list for System Admin (superadmin) — ignores operational pages in saved moto1_nav.
+const SYSTEM_ADMIN_NAV = ["dash", "users", "settings", "sync", "audit"];
 
 // Default Primary & Admin Navigation pages each role can open.
 const DEFAULT_ROLE_NAV = {
   admin:      ["dash", "cust", "insp", "rep", "pos", "ql", "cat", "bill", "his", "reports", "audit"],
-  superadmin: ["dash", "cust", "insp", "rep", "pos", "ql", "cat", "bill", "his", "reports", "audit"],
+  superadmin: [...SYSTEM_ADMIN_NAV],
   mechanic:   ["dash", "insp", "rep", "pos", "ql", "bill"]
 };
 const ROLE_NAV = DEFAULT_ROLE_NAV;
 
 /**
  * Returns allowed primary/admin navigation route keys for a role.
- * Reads custom permissions matrix from localStorage key "moto1_nav", falling back to defaults.
- * Automatically migrates legacy matrices:
- *   _v: 2 grants full primary nav to Super Admin once.
- *   _q: 1 migrated mechanic to dedicated "qlabor".
- *   _p: 1 grants full POS tabs ("pos", "ql", "bill") to Mechanic and removes "qlabor" once.
- *   _a: 1 grants "audit" to admin and superadmin once and ensures mechanic does not have it.
- * Super Admin always has "audit", Admin and Super Admin always have "dash", regardless of stored matrix.
- * Mechanic role is hard-coded to never have access to "audit".
+ * System Admin (superadmin) always uses the fixed SYSTEM_ADMIN_NAV list and ignores saved entries outside it.
+ * For Admin and Mechanic, reads custom permissions matrix from "moto1_nav" (in-memory migration without rewriting saved data).
  * @param {string} role - System role key.
  * @returns {Array<string>} Allowed route keys.
  */
 function getRoleNav(role) {
+  const validKeys = V.map((x) => x[0]);
+
+  if (role === "superadmin") {
+    return SYSTEM_ADMIN_NAV.filter((k) => validKeys.includes(k));
+  }
+
   let matrix = null;
   try {
     const raw = localStorage.getItem("moto1_nav");
@@ -544,97 +553,29 @@ function getRoleNav(role) {
     matrix = null;
   }
 
-  // Migration for _v: 2 (adds missing default pages to saved superadmin list once)
-  if (matrix && typeof matrix === "object" && (!matrix._v || matrix._v < 2)) {
-    try {
-      if (!Array.isArray(matrix.superadmin)) {
-        matrix.superadmin = [...DEFAULT_ROLE_NAV.superadmin];
-      } else {
-        DEFAULT_ROLE_NAV.superadmin.forEach((k) => {
-          if (!matrix.superadmin.includes(k)) {
-            matrix.superadmin.push(k);
-          }
-        });
-      }
-      matrix._v = 2;
-      localStorage.setItem("moto1_nav", JSON.stringify(matrix));
-    } catch (e) {}
-  }
-
-  // Migration for _q: 1 (adds "qlabor" to saved mechanic list once, replacing legacy "ql")
-  if (matrix && typeof matrix === "object" && !matrix._q) {
-    try {
-      if (Array.isArray(matrix.mechanic)) {
-        matrix.mechanic = matrix.mechanic.filter((k) => k !== "ql");
-        if (!matrix.mechanic.includes("qlabor")) {
-          matrix.mechanic.push("qlabor");
-        }
-      } else {
-        matrix.mechanic = [...DEFAULT_ROLE_NAV.mechanic];
-      }
-      matrix._q = 1;
-      localStorage.setItem("moto1_nav", JSON.stringify(matrix));
-    } catch (e) {}
-  }
-
-  // Migration for _p: 1 (gives mechanic full POS tabs: "pos", "ql", "bill", removing "qlabor" once)
-  if (matrix && typeof matrix === "object" && !matrix._p) {
-    try {
-      if (Array.isArray(matrix.mechanic)) {
-        matrix.mechanic = matrix.mechanic.filter((k) => k !== "qlabor");
-        ["pos", "ql", "bill"].forEach((k) => {
-          if (!matrix.mechanic.includes(k)) {
-            matrix.mechanic.push(k);
-          }
-        });
-      } else {
-        matrix.mechanic = [...DEFAULT_ROLE_NAV.mechanic];
-      }
-      matrix._p = 1;
-      localStorage.setItem("moto1_nav", JSON.stringify(matrix));
-    } catch (e) {}
-  }
-
-  // Migration for _a: 1 (adds "audit" to saved admin and superadmin lists once, ensures not in mechanic list)
-  if (matrix && typeof matrix === "object" && !matrix._a) {
-    try {
-      if (Array.isArray(matrix.superadmin)) {
-        if (!matrix.superadmin.includes("audit")) {
-          matrix.superadmin.push("audit");
-        }
-      } else {
-        matrix.superadmin = [...DEFAULT_ROLE_NAV.superadmin];
-      }
-
-      if (Array.isArray(matrix.admin)) {
-        if (!matrix.admin.includes("audit")) {
-          matrix.admin.push("audit");
-        }
-      } else {
-        matrix.admin = [...DEFAULT_ROLE_NAV.admin];
-      }
-
-      if (Array.isArray(matrix.mechanic)) {
-        matrix.mechanic = matrix.mechanic.filter((k) => k !== "audit");
-      }
-
-      matrix._a = 1;
-      localStorage.setItem("moto1_nav", JSON.stringify(matrix));
-    } catch (e) {}
-  }
-
-  let list = (matrix && Array.isArray(matrix[role]))
+  let list = (matrix && typeof matrix === "object" && Array.isArray(matrix[role]))
     ? [...matrix[role]]
     : [...(DEFAULT_ROLE_NAV[role] || [])];
 
-  // Super Admin ALWAYS has access to Audit
-  if (role === "superadmin") {
-    if (!list.includes("audit")) {
-      list.push("audit");
+  // Apply legacy in-memory migrations for older saved moto1_nav without rewriting storage
+  if (matrix && typeof matrix === "object" && role === "mechanic") {
+    if (!matrix._q) {
+      list = list.filter((k) => k !== "ql");
+      if (!list.includes("qlabor")) list.push("qlabor");
+    }
+    if (!matrix._p) {
+      list = list.filter((k) => k !== "qlabor");
+      ["pos", "ql", "bill"].forEach((k) => {
+        if (!list.includes(k)) list.push(k);
+      });
     }
   }
-  // Admin & Super Admin ALWAYS have access to Dashboard
-  if ((role === "admin" || role === "superadmin") && !list.includes("dash")) {
+  if (matrix && typeof matrix === "object" && role === "admin" && !matrix._a) {
+    if (!list.includes("audit")) list.push("audit");
+  }
+
+  // Admin ALWAYS has access to Dashboard
+  if (role === "admin" && !list.includes("dash")) {
     list.unshift("dash");
   }
   // Mechanic role is hard-coded to NEVER open or receive audit
@@ -642,23 +583,25 @@ function getRoleNav(role) {
     list = list.filter((k) => k !== "audit");
   }
 
-  // Ensure removed pages (such as legacy "users") from stored matrices are ignored
-  list = list.filter((k) => k !== "users");
+  // System Admin-only pages are never available to Admin or Mechanic
+  list = list.filter((k) => k !== "users" && k !== "settings" && k !== "sync");
 
-  const validKeys = V.map((x) => x[0]);
   return list.filter((k) => validKeys.includes(k));
 }
 
 /**
  * Checks whether the active role has permission to open a specific navigation page.
- * Hard-coded to refuse Mechanic from opening "audit", and refuses removed "users" page.
- * @param {string} pageKey - Route key to check (e.g. "dash", "cust", "rep", "cat", "his", "reports", "audit").
+ * System pages ("users", "settings", "sync") are restricted to System Admin (superadmin) only.
+ * Mechanic is hard-coded to refuse "audit".
+ * @param {string} pageKey - Route key to check.
  * @returns {boolean} True if the active role can open the page.
  */
 const canOpen = (pageKey) => {
-  if (pageKey === "users") return false;
   const u = getCurrentUser();
   if (!u) return false;
+  if ((pageKey === "users" || pageKey === "settings" || pageKey === "sync") && u.activeRole !== "superadmin") {
+    return false;
+  }
   if (pageKey === "audit" && u.activeRole === "mechanic") return false;
   const allowed = getRoleNav(u.activeRole);
   return allowed.includes(pageKey);
@@ -673,13 +616,25 @@ const canOpen = (pageKey) => {
 const can = (permission) => true;
 
 /**
+ * Maps legacy saved "Super Admin" display names to "System Admin" without mutating storage.
+ * @param {string} name - Stored user display name.
+ * @returns {string} Display name.
+ */
+function displayUserName(name) {
+  if (typeof name === "string" && name.trim().toLowerCase() === "super admin") {
+    return "System Admin";
+  }
+  return name || "";
+}
+
+/**
  * Default demo user accounts seeded into localStorage under key "moto1_users".
  */
 const DEFAULT_USERS = [
-  { id: "u1", name: "Super Admin", email: "superadmin@gmail.com", role: "superadmin", active: true, lastLogin: "" },
-  { id: "u2", name: "Admin",       email: "admin@gmail.com",      role: "admin",      active: true, lastLogin: "" },
-  { id: "u3", name: "Larpus",      email: "larpus@gmail.com",     role: "mechanic",   active: true, lastLogin: "" },
-  { id: "u4", name: "Hiyo",        email: "hiyo@gmail.com",       role: "mechanic",   active: true, lastLogin: "" }
+  { id: "u1", name: "System Admin", email: "superadmin@gmail.com", role: "superadmin", active: true, lastLogin: "" },
+  { id: "u2", name: "Admin",        email: "admin@gmail.com",      role: "admin",      active: true, lastLogin: "" },
+  { id: "u3", name: "Larpus",       email: "larpus@gmail.com",     role: "mechanic",   active: true, lastLogin: "" },
+  { id: "u4", name: "Hiyo",         email: "hiyo@gmail.com",       role: "mechanic",   active: true, lastLogin: "" }
 ];
 
 /**
@@ -940,6 +895,7 @@ function logAudit(action, actorEmailOrName, role, category = "Sessions", ref = "
     const matched = users.find((x) => x && (x.email === actorEmailOrName || x.name === actorEmailOrName));
     if (matched && matched.name) byName = matched.name;
   } catch (e) {}
+  byName = displayUserName(byName);
 
   if (!note) {
     if (action === "Login") note = "Signed in via demo accounts selector";
@@ -995,7 +951,7 @@ function seedAuditEntries() {
   if (!Array.isArray(D.audit)) D.audit = [];
 
   const initialSessions = [
-    { id: "seed-sess-01", at: "2026-11-17 08:30:12", by: "Super Admin", role: "superadmin", cat: "Sessions", action: "Login", ref: "—", note: "Signed in via demo accounts selector" },
+    { id: "seed-sess-01", at: "2026-11-17 08:30:12", by: "System Admin", role: "superadmin", cat: "Sessions", action: "Login", ref: "—", note: "Signed in via demo accounts selector" },
     { id: "seed-sess-02", at: "2026-11-17 08:15:40", by: "Maria Santos", role: "admin", cat: "Sessions", action: "Logout", ref: "—", note: "Signed out of session" },
     { id: "seed-sess-03", at: "2026-11-17 07:45:22", by: "Maria Santos", role: "admin", cat: "Sessions", action: "Login", ref: "—", note: "Signed in via demo accounts selector" },
     { id: "seed-sess-04", at: "2026-11-16 18:02:15", by: "Larpus", role: "mechanic", cat: "Sessions", action: "Logout", ref: "—", note: "Shift completed; signed out" },
@@ -1032,7 +988,7 @@ function seedAuditEntries() {
     { id: "seed-aud-12", hoursAgo: 102, by: "Maria Santos", role: "admin", cat: "Customers", action: "Plate number edited", ref: "ABC-1243", note: "ABC-1234 \u2192 ABC-1243" },
     { id: "seed-aud-13", hoursAgo: 124, by: "Maria Santos", role: "admin", cat: "Customers", action: "Customer deleted", ref: "Pedro Reyes", note: "Deleted Pedro Reyes (2 service records)" },
     { id: "seed-aud-14", hoursAgo: 53, by: "Unknown user", role: "", cat: "Security", action: "Failed login", ref: "-", note: "Failed sign-in attempt on the Admin account." },
-    { id: "seed-aud-15", hoursAgo: 75, by: "Super Admin", role: "superadmin", cat: "Security", action: "Role changed", ref: "Maria Santos", note: "Maria Santos: Mechanic \u2192 Admin" }
+    { id: "seed-aud-15", hoursAgo: 75, by: "System Admin", role: "superadmin", cat: "Security", action: "Role changed", ref: "Maria Santos", note: "Maria Santos: Mechanic \u2192 Admin" }
   ];
 
   narrativeSamples.forEach((item) => {
@@ -1765,11 +1721,12 @@ function renderSidebarUser() {
   const u = getCurrentUser();
   if (!u) return;
 
+  const shownName = displayUserName(u.name);
   const avEl = $("user-av");
-  if (avEl) avEl.textContent = getInitials(u.name);
+  if (avEl) avEl.textContent = getInitials(shownName);
 
   const nameEl = $("user-name");
-  if (nameEl) nameEl.textContent = u.name;
+  if (nameEl) nameEl.textContent = shownName;
 
   const roleEl = $("user-role");
   const roleMeta = ROLES[u.activeRole] || { label: u.activeRole };
@@ -2082,7 +2039,7 @@ function renderLoginDropdown(filterText = "") {
   const filtered = users.filter((u) => {
     if (!q) return true;
     const email = (u.email || "").toLowerCase();
-    const name = (u.name || "").toLowerCase();
+    const name = displayUserName(u.name).toLowerCase();
     const roleLabel = (ROLES[u.role]?.label || u.role || "").toLowerCase();
     const label = getUserRoleLabel(u).toLowerCase();
     return email.includes(q) || name.includes(q) || roleLabel.includes(q) || label.includes(q);
@@ -2418,7 +2375,7 @@ function logout() {
  */
 function renderNoAccess() {
   const u = getCurrentUser();
-  const name = u ? u.name : "User";
+  const name = u ? escHtml(displayUserName(u.name)) : "User";
   const roleLabel = u && ROLES[u.activeRole] ? ROLES[u.activeRole].label : "Workspace";
   return `<div class="card no-access-card"><div style="display:flex;justify-content:center;margin-bottom:12px;color:var(--text-muted)">${ICONS.lock24}</div><h1 style="margin:0 0 8px;font-size:22px;font-weight:800;color:var(--text)">Welcome, ${name}</h1><p style="margin:0;font-size:14px;color:var(--text-muted);line-height:1.5">Your ${roleLabel} workspace isn't set up yet. Navigation for this role will be added soon.</p></div>`;
 }
@@ -2861,11 +2818,14 @@ const V = [
   ["bill", "💳", "Transactions & Billing"],
   ["his", "🕘", "Service History"],
   ["reports", "📊", "Reports"],
+  ["users", "🛡️", "System Access & Permissions"],
+  ["settings", "⚙️", "System Settings"],
+  ["sync", "🔄", "Backup & Sync"],
   ["audit", "📋", "Audit"]
 ];
 
 /** Route keys placed under the ADMINISTRATION & SUPPORT section. */
-const ADMIN_NAV_KEYS = ["reports", "audit"];
+const ADMIN_NAV_KEYS = ["reports", "users", "settings", "sync", "audit"];
 
 /** Currently active view key. */
 let view = "dash";
@@ -3115,10 +3075,7 @@ function go(v) {
     closeAppDrawer({ restoreFocus: false });
   }
   syncSidebarMode();
-  // Redirect removed User Management route to Dashboard
-  if (v === "users") {
-    v = "dash";
-  }
+  if ((v === "users" || v === "settings" || v === "sync") && !isSuper()) return;
   if (!canOpen(v)) return;
   if (v === "audit") {
     const u = getCurrentUser();
@@ -3131,6 +3088,10 @@ function go(v) {
     custSearch = "";
     if (v !== "rep") {
       repStatusFilter = "all";
+    }
+    if (v === "users") {
+      userMgmtTab = "directory";
+      userSearch = "";
     }
     if (v === "audit") {
       auditSearch = "";
@@ -5263,16 +5224,77 @@ function openJobInPos(jobId) {
 }
 
 /**
+ * Shared page title card builder matching the standard ".card.top" layout.
+ * @param {string} title - Page heading text.
+ * @param {string} subtitle - Subtitle description text.
+ * @returns {string} HTML string.
+ */
+function renderPageTitleCard(title, subtitle) {
+  return `<div class="card top">
+  <div>
+    <h1>${escHtml(title)}</h1>
+    <p>${escHtml(subtitle)}</p>
+  </div>
+</div>`;
+}
+
+/**
+ * Renders the static System Admin Dashboard view (superadmin role only).
+ * Shows welcome card, 3 fixed technical-status KPI cards, and 4 system navigation tiles.
+ * @returns {string} HTML string.
+ */
+function dashSystemAdmin() {
+  const d = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric"
+  });
+  const roleLabel = ROLES.superadmin.label;
+  const kpi = (icon, label, value, desc) =>
+    `<div class="card st"><div class="ic">${icon}</div><div><small>${escHtml(label)}</small><b>${escHtml(value)}</b><div class="dash-rev-sub">${escHtml(desc)}</div></div></div>`;
+
+  const navTiles = [
+    { key: "users", icon: LINE_ICONS.users, label: "System Access & Permissions" },
+    { key: "settings", icon: LINE_ICONS.settings, label: "System Settings" },
+    { key: "sync", icon: LINE_ICONS.sync, label: "Backup & Sync" },
+    { key: "audit", icon: LINE_ICONS.audit, label: "Audit" }
+  ];
+
+  return `
+    <div class="card top"><div><h1>Welcome back</h1><p>${escHtml(roleLabel)} | ${escHtml(d)}</p></div><span class="pill">● Saved on this device</span></div>
+
+    <div class="stats">
+      ${kpi(LINE_ICONS.users, "SYSTEM ACCESS", "4", "Active accounts · 3 roles")}
+      ${kpi(LINE_ICONS.backup, "BACKUP STATUS", "Success", "Last run today, 2:00 AM")}
+      ${kpi(LINE_ICONS.sync, "SYNC HEALTH", "Healthy", "Last synced 5 min ago")}
+    </div>
+
+    <div class="sys-nav-tiles" role="navigation" aria-label="System administration shortcuts">
+      ${navTiles.map((t) => `
+        <button type="button" class="sys-nav-tile" onclick="go('${t.key}')">
+          <span class="sys-nav-tile-icon" aria-hidden="true">${t.icon}</span>
+          <span class="sys-nav-tile-label">${escHtml(t.label)}</span>
+        </button>
+      `).join("")}
+    </div>
+  `;
+}
+
+/**
  * View renderers registry containing HTML generator functions for each screen.
  */
 const R = {
   /**
-   * Dashboard view: shows KPI summary cards, Quick Actions bar, and operational monitoring feeds.
-   * Admin and Super Admin roles see the upgraded operational feeds; Mechanic sees the dedicated dashMechanic().
+   * Dashboard view: dispatches System Admin to dashSystemAdmin(), Mechanic to dashMechanic(),
+   * and keeps Admin on the operational dashboard unchanged.
    * @returns {string} HTML string.
    */
   dash() {
     const u = getCurrentUser();
+    if (u && u.activeRole === "superadmin") {
+      return dashSystemAdmin();
+    }
     if (u && u.activeRole === "mechanic") {
       return dashMechanic();
     }
@@ -5567,8 +5589,35 @@ const R = {
   },
 
   /**
+   * System Access & Permissions view (System Admin only).
+   * @returns {string} HTML string.
+   */
+  users() {
+    if (!isSuper() || !canOpen("users")) return renderNoAccess();
+    return getUsersViewHtml();
+  },
+
+  /**
+   * System Settings view (System Admin only; title-card-only in Pass 1).
+   * @returns {string} HTML string.
+   */
+  settings() {
+    if (!isSuper() || !canOpen("settings")) return renderNoAccess();
+    return renderPageTitleCard("System Settings", "System-level configuration and settings.");
+  },
+
+  /**
+   * Backup & Sync view (System Admin only; title-card-only in Pass 1).
+   * @returns {string} HTML string.
+   */
+  sync() {
+    if (!isSuper() || !canOpen("sync")) return renderNoAccess();
+    return renderPageTitleCard("Backup & Sync", "Manage system backups and record synchronization.");
+  },
+
+  /**
    * Audit view: activity log and trail.
-   * Accessible to Admin (operational activity only) and Super Admin (full log).
+   * Accessible to Admin (operational activity only) and System Admin (full log).
    * Refused to Mechanic role.
    * @returns {string} HTML string.
    */
@@ -5687,7 +5736,7 @@ function openRecord(id) {
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
           <span class="badge-cancelled">CANCELLED</span>
           <span style="font-size:12px;font-weight:600;color:var(--text-secondary)">
-            Cancelled on ${formatJobDate(dateVal)} at ${formatJobTime(dateVal)} by ${escHtml((o.cancel && o.cancel.by) || "Admin")}
+            Cancelled on ${formatJobDate(dateVal)} at ${formatJobTime(dateVal)} by ${escHtml(displayUserName((o.cancel && o.cancel.by) || "Admin"))}
           </span>
         </div>
         <div><b>Reason:</b> ${escHtml((o.cancel && o.cancel.reason) ? o.cancel.reason : "No reason given")}</div>
@@ -5697,7 +5746,7 @@ function openRecord(id) {
     ${o.reversed ? `
       <div style="background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#991B1B">
         <b>TRANSACTION REVERSED:</b> ${escHtml(o.reversed.reason || "Reversed")}
-        <div style="font-size:11px;color:#7F1D1D;margin-top:2px">${escHtml(o.reversed.at)} · by ${escHtml(o.reversed.by || "Super Admin")}</div>
+        <div style="font-size:11px;color:#7F1D1D;margin-top:2px">${escHtml(o.reversed.at)} · by ${escHtml(displayUserName(o.reversed.by || "System Admin"))}</div>
       </div>
     ` : ""}
 
@@ -5842,7 +5891,8 @@ function closeRecord() {
   ["rec-ov", closeRecord],
   ["insp-ov", closeInspModal],
   ["rcpt-ov", closeReceipt],
-  ["pos-void-ov", closePosVoidModal]
+  ["pos-void-ov", closePosVoidModal],
+  ["access-ov", closeViewAccessModal]
 ].forEach(([id, fn]) => {
   const el = $(id);
   if (el) {
@@ -5865,6 +5915,10 @@ document.onkeydown = (e) => {
     }
     if (mobileDrawerOpen) {
       closeAppDrawer();
+      return;
+    }
+    if ($("access-ov") && $("access-ov").classList.contains("on")) {
+      closeViewAccessModal();
       return;
     }
     if ($("pos-void-ov") && $("pos-void-ov").classList.contains("on")) {
@@ -8914,12 +8968,12 @@ function openReceipt(woId) {
       <div style="background:#FEF2F2;border:2px solid #EF4444;border-radius:8px;padding:12px;margin-bottom:16px;text-align:center">
         <div style="color:#DC2626;font-size:16px;font-weight:900;letter-spacing:0.08em;margin-bottom:4px">*** REVERSED ***</div>
         <div style="font-size:12px;color:#991B1B"><b>Reason:</b> ${escHtml(o.reversed.reason || "Transaction reversed")}</div>
-        <div style="font-size:11px;color:#7F1D1D;margin-top:2px">${escHtml(o.reversed.at)} · by ${escHtml(o.reversed.by || "Super Admin")}</div>
+        <div style="font-size:11px;color:#7F1D1D;margin-top:2px">${escHtml(o.reversed.at)} · by ${escHtml(displayUserName(o.reversed.by || "System Admin"))}</div>
       </div>
     ` : ""}
     <div style="text-align:center;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:16px">
       <div style="display:flex;justify-content:center;margin-bottom:4px;color:var(--text)">${ICONS.bike}</div>
-      <h2 style="margin:4px 0 2px;font-size:22px;color:var(--text)">MotorCare</h2>
+      <h2 style="margin:4px 0 2px;font-size:22px;color:var(--text)">MotoCare</h2>
       <div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em">${isQuick ? `Quick Fix Receipt · ${escHtml((o && getQuickLaborSubtypeLabel(o)) || (seeded && seeded.subtype) || "Labor Only")}` : "Official Repair &amp; Service Receipt"}</div>
       <div style="font-size:13px;font-weight:700;color:var(--accent);margin-top:6px">${isQuick ? ((o && (o.no || o.txnId || getTxnId(o))) || (seeded && seeded.jo) || "QL-0001") : jo}</div>
       <div style="font-size:11px;color:var(--text-muted)">${formatJobDate(pay.paidAt || today())} · ${formatJobTime(pay.paidAt || "")}</div>
@@ -9852,6 +9906,451 @@ function getReportsViewHtml() {
 }
 
 /* ==========================================================
+   SYSTEM ACCESS & PERMISSIONS
+   ========================================================== */
+
+/** Currently active tab on System Access & Permissions screen ("directory" or "matrix"). */
+let userMgmtTab = "directory";
+
+/** Active search query for user directory table. */
+let userSearch = "";
+
+/**
+ * Sets the active tab on the System Access & Permissions screen (System Admin only).
+ * @param {"directory"|"matrix"} tab - Target tab.
+ */
+function setUserMgmtTab(tab) {
+  if (!isSuper() || !canOpen("users")) return;
+  userMgmtTab = tab;
+  const main = $("main");
+  if (main) main.innerHTML = getUsersViewHtml();
+}
+
+/**
+ * Handles live search input on User Directory tab (System Admin only).
+ * Refreshes only the table rows to preserve input focus.
+ * @param {string} val - Typed search string.
+ */
+function onUserSearchInput(val) {
+  if (!isSuper() || !canOpen("users")) return;
+  userSearch = val;
+  const tbody = $("user-table-body");
+  if (tbody) tbody.innerHTML = getUserTableRowsHtml();
+}
+
+/**
+ * Returns filtered user accounts matching search query.
+ * @returns {Array<Object>} Filtered list of user accounts.
+ */
+function getFilteredUsers() {
+  const users = loadUsers();
+  const q = (userSearch || "").trim().toLowerCase();
+  if (!q) return users;
+  return users.filter((u) => {
+    const name = displayUserName(u.name).toLowerCase();
+    const email = (u.email || "").toLowerCase();
+    return name.includes(q) || email.includes(q);
+  });
+}
+
+/**
+ * Formats user role badge with role-tinted background, border, and icon.
+ * @param {string} role - System role key.
+ * @returns {string} HTML markup string.
+ */
+function getUserRoleBadge(role) {
+  if (role === "superadmin") {
+    return `<span class="um-role-badge superadmin"><span style="display:inline-flex;align-items:center">${LINE_ICONS.users}</span> SYSTEM ADMIN</span>`;
+  }
+  if (role === "admin") {
+    return `<span class="um-role-badge admin"><span style="display:inline-flex;align-items:center">${ICONS.crown}</span> ADMIN</span>`;
+  }
+  return `<span class="um-role-badge mechanic"><span style="display:inline-flex;align-items:center">${LINE_ICONS.rep}</span> MECHANIC</span>`;
+}
+
+/**
+ * Formats a stored local timestamp string into a dark date and muted time.
+ * @param {string} ts - Stored local timestamp ("YYYY-MM-DD HH:MM").
+ * @returns {string} Formatted HTML.
+ */
+function formatLastLoginDisplay(ts) {
+  if (!ts || !ts.trim()) {
+    return `<span style="color:var(--text-muted)">Never</span>`;
+  }
+  const parts = ts.trim().split(" ");
+  if (parts.length !== 2) return `<span style="color:var(--text-muted)">Never</span>`;
+  const [datePart, timePart] = parts;
+  const [y, m, d] = datePart.split("-").map(Number);
+  const [hr, min] = timePart.split(":").map(Number);
+  if (!y || !m || !d || isNaN(hr) || isNaN(min)) {
+    return `<span style="color:var(--text-muted)">Never</span>`;
+  }
+  const dateObj = new Date(y, m - 1, d, hr, min);
+  const dateStr = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const timeStr = dateObj.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+  return `
+    <div style="font-weight:600;color:var(--text-primary)">${escHtml(dateStr)}</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${escHtml(timeStr)}</div>
+  `;
+}
+
+/**
+ * Builds HTML table rows for the User Directory table.
+ * @returns {string} HTML table rows.
+ */
+function getUserTableRowsHtml() {
+  const list = getFilteredUsers();
+  if (!list.length) {
+    return `
+      <tr>
+        <td colspan="5" style="text-align:center;padding:36px;color:var(--text-muted)">
+          <div style="font-weight:700;font-size:15px;color:var(--text-primary);margin-bottom:4px">No users found.</div>
+          <div>Try a different search or filter.</div>
+        </td>
+      </tr>
+    `;
+  }
+
+  const current = getCurrentUser();
+  const curId = current ? current.id : null;
+  const allUsers = loadUsers();
+  const activeSuperAdmins = allUsers.filter((u) => u.role === "superadmin" && u.active !== false).length;
+
+  return list.map((u) => {
+    const shownName = displayUserName(u.name);
+    const isSelf = u.id === curId;
+    const isLastSuperAdmin = u.role === "superadmin" && activeSuperAdmins <= 1 && u.active !== false;
+    const canToggleStatus = !isSelf && !isLastSuperAdmin;
+    const isActive = u.active !== false;
+    const roleBadge = getUserRoleBadge(u.role);
+    const statusBadge = isActive
+      ? `<span class="um-status-pill active">● Active</span>`
+      : `<span class="um-status-pill inactive">● Inactive</span>`;
+    const lastLoginHtml = formatLastLoginDisplay(u.lastLogin);
+    const emailPrefix = (u.email || "").split("@")[0] || "user";
+    const usernameStr = `@${emailPrefix}.${u.role}`;
+
+    return `
+      <tr>
+        <td>
+          <div class="um-user-cell">
+            <div class="um-avatar ${escHtml(u.role)}">${escHtml(getInitials(shownName))}</div>
+            <div>
+              <div class="um-user-name-row">
+                <span class="um-user-name">${escHtml(shownName)}</span>
+                ${isSelf ? `<span class="um-you-pill">You</span>` : ""}
+              </div>
+              <div class="um-username">${escHtml(usernameStr)}</div>
+            </div>
+          </div>
+        </td>
+        <td>${roleBadge}</td>
+        <td>${statusBadge}</td>
+        <td>${lastLoginHtml}</td>
+        <td class="r" style="white-space:nowrap">
+          <button type="button" class="um-action-btn" data-demo="true" onclick="showDemoNotice()" title="Edit user" aria-label="Edit user">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+          </button>
+          <button type="button" class="um-action-btn" onclick="openViewAccessModal('${escHtml(u.id)}')" title="View access" aria-label="View access">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"></circle><path d="m21 2-9.6 9.6"></path><path d="m15.5 7.5 3 3L22 7l-3-3"></path></svg>
+          </button>
+          ${canToggleStatus ? `
+            <button type="button" class="um-action-btn" data-demo="true" onclick="showDemoNotice()" title="${isActive ? "Deactivate user" : "Reactivate user"}" aria-label="${isActive ? "Deactivate user" : "Reactivate user"}">
+              ${isActive
+                ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="22" y1="11" x2="16" y2="11"></line></svg>`
+                : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><polyline points="16 11 18 13 22 9"></polyline></svg>`
+              }
+            </button>
+          ` : ""}
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
+
+/**
+ * Opens view access modal showing role description and accessible pages for a user (System Admin only).
+ * @param {string} userId
+ */
+function openViewAccessModal(userId) {
+  if (!isSuper()) return;
+  const users = loadUsers();
+  const u = users.find((x) => x.id === userId);
+  if (!u) return;
+
+  const ov = $("access-ov");
+  const md = $("access-md");
+  if (!ov || !md) return;
+
+  const shownName = displayUserName(u.name);
+  const allowedKeys = getRoleNav(u.role);
+  const allowedPages = V.filter((x) => allowedKeys.includes(x[0]));
+
+  let desc = "Standard user with assigned role access.";
+  if (u.role === "superadmin") {
+    desc = "System administrator managing access permissions, system settings, backup and sync, and audit logs.";
+  } else if (u.role === "admin") {
+    desc = "Operations manager with full access to Service Status, customers, catalog, billing, and reports.";
+  } else if (u.role === "mechanic") {
+    desc = "Service floor specialist with access to dashboard queue, inspections, and assigned repair jobs.";
+  }
+
+  md.innerHTML = `
+    <div class="insp-header">
+      <div>
+        <div class="insp-title" id="access-modal-title">Role Access &amp; Permissions</div>
+        <div class="insp-subtitle">${escHtml(shownName)} (${escHtml(u.email)})</div>
+      </div>
+      <button type="button" class="insp-close-btn" onclick="closeViewAccessModal()" title="Close dialog" aria-label="Close dialog">✕</button>
+    </div>
+
+    <div style="padding:20px;display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg-page);border:1px solid var(--border);border-radius:10px">
+        <div class="um-avatar ${escHtml(u.role)}">${escHtml(getInitials(shownName))}</div>
+        <div>
+          <div style="font-weight:700;font-size:15px;color:var(--text-primary)">${escHtml(shownName)}</div>
+          <div style="margin-top:2px">${getUserRoleBadge(u.role)}</div>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Role Description</div>
+        <div style="font-size:13px;color:var(--text-secondary);line-height:1.5">${escHtml(desc)}</div>
+      </div>
+
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Accessible Navigation Pages</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          ${allowedPages.map((p) => `
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600">
+              <span style="display:inline-flex;align-items:center">${ICONS[p[0]] || p[1]}</span>
+              <span>${escHtml(p[2])}</span>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    </div>
+
+    <div class="insp-footer" style="position:static;padding-top:14px;border-top:1px solid var(--border);display:flex;justify-content:flex-end">
+      <button type="button" class="btn" onclick="closeViewAccessModal()">Close</button>
+    </div>
+  `;
+
+  ov.classList.add("on");
+  document.body.style.overflow = "hidden";
+  ov.focus();
+}
+
+/**
+ * Closes the View Access modal dialog.
+ */
+function closeViewAccessModal() {
+  const ov = $("access-ov");
+  if (ov) {
+    ov.classList.remove("on");
+  }
+  document.body.style.overflow = "";
+}
+
+/**
+ * Builds HTML for the display-only Permissions Matrix tab table.
+ * Shows System Admin's fixed system-page access alongside unchanged Admin and Mechanic rows.
+ * Never writes to "moto1_nav".
+ * @returns {string} HTML string.
+ */
+function getPermissionsMatrixHtml() {
+  const superNav = getRoleNav("superadmin");
+  const adminNav = getRoleNav("admin");
+  const mechNav = getRoleNav("mechanic");
+
+  return `
+    <div class="matrix-card">
+      <table class="matrix-table">
+        <thead>
+          <tr>
+            <th>PAGE / MODULE</th>
+            <th>SYSTEM ADMIN</th>
+            <th>ADMIN</th>
+            <th>MECHANIC</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${V.map((route) => {
+            const key = route[0];
+            const icon = route[1];
+            const label = route[2];
+
+            const isSysOnly = key === "users" || key === "settings" || key === "sync";
+            const isSuperLocked = SYSTEM_ADMIN_NAV.includes(key);
+            const isAdminLocked = key === "dash" || isSysOnly;
+            const isMechLocked = key === "audit" || isSysOnly;
+
+            const hasSuper = superNav.includes(key);
+            const hasAdmin = adminNav.includes(key) && !isSysOnly;
+            const hasMech = mechNav.includes(key) && !isMechLocked;
+
+            const superTip = isSuperLocked ? `System Admin always has access to ${label}.` : "";
+            const adminTip = key === "dash"
+              ? "Admin must always have access to Dashboard."
+              : (isSysOnly ? `${label} is restricted to System Admin.` : "");
+            const mechTip = key === "audit"
+              ? "Audit is not available to Mechanics."
+              : (isSysOnly ? `${label} is restricted to System Admin.` : "");
+
+            return `
+              <tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:10px;font-weight:700">
+                    <span style="display:inline-flex;align-items:center;color:var(--text)">${ICONS[key] || icon}</span>
+                    <span>${escHtml(label)}</span>
+                  </div>
+                </td>
+                <td>
+                  <label class="matrix-check-wrap" title="${escHtml(superTip)}">
+                    <input
+                      type="checkbox"
+                      class="matrix-check"
+                      ${hasSuper ? "checked" : ""}
+                      ${isSuperLocked ? "disabled" : `onclick="event.preventDefault(); showDemoNotice();"`}
+                    />
+                    ${isSuperLocked ? `<span style="display:inline-flex;align-items:center;color:var(--text-muted)" title="Locked permission">${ICONS.lock}</span>` : ""}
+                  </label>
+                </td>
+                <td>
+                  <label class="matrix-check-wrap" title="${escHtml(adminTip)}">
+                    <input
+                      type="checkbox"
+                      class="matrix-check"
+                      ${hasAdmin ? "checked" : ""}
+                      ${isAdminLocked ? "disabled" : `onclick="event.preventDefault(); showDemoNotice();"`}
+                    />
+                    ${isAdminLocked ? `<span style="display:inline-flex;align-items:center;color:var(--text-muted)" title="Locked permission">${ICONS.lock}</span>` : ""}
+                  </label>
+                </td>
+                <td>
+                  <label class="matrix-check-wrap" title="${escHtml(mechTip)}">
+                    <input
+                      type="checkbox"
+                      class="matrix-check"
+                      ${hasMech ? "checked" : ""}
+                      ${isMechLocked ? "disabled" : `onclick="event.preventDefault(); showDemoNotice();"`}
+                    />
+                    ${isMechLocked ? `<span style="display:inline-flex;align-items:center;color:var(--text-muted)" title="${escHtml(mechTip)}">${ICONS.lock}</span>` : ""}
+                  </label>
+                </td>
+              </tr>
+            `;
+          }).join("")}
+        </tbody>
+      </table>
+
+      <div style="margin-top:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div>
+          <p style="margin:0 0 4px;font-size:13px;color:var(--text-muted);font-style:italic">
+            POS includes Quick Sales, Quick Labor, and Transactions &amp; Billing. The 'Quick Labor' row opens the Quick Labor tab only.
+          </p>
+          <p style="margin:0;font-size:13px;color:var(--text-muted);font-style:italic">
+            This controls which pages each role can open. It hides pages in the browser only and is not real security.
+          </p>
+        </div>
+        <button
+          type="button"
+          id="btn-matrix-reset"
+          class="btn g sm"
+          data-demo="true"
+          onclick="showDemoNotice()"
+          style="color:var(--text-muted);font-weight:600"
+        >
+          Reset to defaults
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Generates the full HTML markup for the System Access & Permissions view (System Admin only).
+ * @returns {string} HTML markup string.
+ */
+function getUsersViewHtml() {
+  if (!isSuper() || !canOpen("users")) {
+    return renderNoAccess();
+  }
+  const isDirectory = userMgmtTab === "directory";
+
+  return `
+    ${renderPageTitleCard("System Access & Permissions", "Manage system access and role permissions.")}
+
+    <!-- Tab navigation -->
+    <div class="um-tabs" role="tablist" aria-label="System Access & Permissions Views">
+      <button
+        type="button"
+        role="tab"
+        id="um-tab-dir"
+        class="um-tab ${isDirectory ? "active" : ""}"
+        aria-selected="${isDirectory ? "true" : "false"}"
+        onclick="setUserMgmtTab('directory')"
+      >
+        <span style="display:inline-flex;align-items:center">${LINE_ICONS.cust}</span> User Directory
+      </button>
+      <button
+        type="button"
+        role="tab"
+        id="um-tab-matrix"
+        class="um-tab ${!isDirectory ? "active" : ""}"
+        aria-selected="${!isDirectory ? "true" : "false"}"
+        onclick="setUserMgmtTab('matrix')"
+      >
+        <span style="display:inline-flex;align-items:center">${LINE_ICONS.users}</span> Permissions Matrix
+      </button>
+    </div>
+
+    ${isDirectory ? `
+      <!-- Toolbar -->
+      <div class="um-toolbar">
+        <div class="um-toolbar-left">
+          <div class="um-search-wrap">
+            <span class="um-search-icon" style="display:inline-flex;align-items:center">${LINE_ICONS.insp}</span>
+            <input
+              id="user-search-input"
+              class="um-search-input"
+              type="text"
+              placeholder="Search by Name or Username..."
+              value="${escHtml(userSearch)}"
+              oninput="onUserSearchInput(this.value)"
+            />
+          </div>
+        </div>
+
+        <button type="button" class="btn-add-user" data-demo="true" onclick="showDemoNotice()">
+          <span style="display:inline-flex;align-items:center">${ICONS.userPlus}</span> Add New User
+        </button>
+      </div>
+
+      <!-- Table Container -->
+      <div class="um-table-wrap">
+        <table class="um-table">
+          <thead>
+            <tr>
+              <th>EMPLOYEE NAME &amp; USERNAME</th>
+              <th>ASSIGNED ROLE</th>
+              <th>ACCOUNT STATUS</th>
+              <th>LAST LOGIN DATE/TIME</th>
+              <th class="r">ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody id="user-table-body">
+            ${getUserTableRowsHtml()}
+          </tbody>
+        </table>
+      </div>
+    ` : `
+      ${getPermissionsMatrixHtml()}
+    `}
+  `;
+}
+
+/* ==========================================================
    AUDIT
    ========================================================== */
 
@@ -9959,7 +10458,7 @@ function isEntryInPeriod(entryAt, period) {
 function matchesAuditSearch(entry, query) {
   if (!query || !query.trim()) return true;
   const q = query.trim().toLowerCase();
-  const byText = (entry.by || "").toLowerCase();
+  const byText = displayUserName(entry.by || "").toLowerCase();
   const roleText = (getUserRoleLabel(entry.role) || entry.role || "").toLowerCase();
   const catText = (entry.cat || "").toLowerCase();
   const actText = (entry.action || "").toLowerCase();
@@ -9978,9 +10477,9 @@ function getAuditUserOptionsHtml(isSuperUser) {
   const visible = all.filter((e) => canViewAuditEntry(e, isSuperUser));
   const usersSet = new Set();
   visible.forEach((e) => {
-    if (e.by) usersSet.add(e.by);
+    if (e.by) usersSet.add(displayUserName(e.by));
   });
-  const order = ["Super Admin", "Maria Santos", "Larpus", "Hiyo", "Unknown user"];
+  const order = ["System Admin", "Maria Santos", "Larpus", "Hiyo", "Unknown user"];
   const usersList = Array.from(usersSet).sort((a, b) => {
     const idxA = order.indexOf(a);
     const idxB = order.indexOf(b);
@@ -10067,7 +10566,7 @@ function getAuditViewHtml() {
     ${!isSuperUser ? `
       <div class="audit-notice-card" role="note">
         <span style="display:inline-flex;align-items:center;color:var(--text-muted)">${ICONS.alert || "ℹ"}</span>
-        <span>You are viewing the operational audit. User, access, override, catalog, and void records are visible to Super Admin only.</span>
+        <span>You are viewing the operational audit. User, access, override, catalog, and void records are visible to System Admin only.</span>
       </div>
     ` : ""}
 
@@ -10139,7 +10638,7 @@ function getAuditResultsHtml() {
   // 3. User filter
   const userFiltered = periodFiltered.filter((e) => {
     if (auditUser === "all" || !auditUser) return true;
-    return e.by === auditUser;
+    return displayUserName(e.by || "") === auditUser;
   });
 
   // 4. Search filter
@@ -10218,7 +10717,7 @@ function getAuditResultsHtml() {
                   <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${escHtml(timeObj.time)}</div>
                 </td>
                 <td>
-                  <div style="font-weight:700;color:var(--text)">${escHtml(entry.by || "Unknown user")}</div>
+                  <div style="font-weight:700;color:var(--text)">${escHtml(displayUserName(entry.by) || "Unknown user")}</div>
                   ${roleLabel ? `
                     <div style="margin-top:4px">
                       <span class="audit-role-badge">${escHtml(roleLabel)}</span>
@@ -10269,7 +10768,7 @@ function getAuditResultsHtml() {
               </div>
             </div>
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-              <span style="font-weight:700;font-size:13px;color:var(--text)">${escHtml(entry.by || "Unknown user")}</span>
+              <span style="font-weight:700;font-size:13px;color:var(--text)">${escHtml(displayUserName(entry.by) || "Unknown user")}</span>
               ${roleLabel ? `<span class="audit-role-badge">${escHtml(roleLabel)}</span>` : ""}
               ${refText !== "—" ? `<code class="audit-ref">${escHtml(refText)}</code>` : ""}
             </div>
@@ -11341,41 +11840,27 @@ function initAuth() {
     syncSidebarMode();
 
     // 3. Choose the page in order:
-    // a. URL hash if valid page key and canOpen() allows it
+    // a. URL hash if present (if allowed, open it; if disallowed, route to dash/first allowed)
     // b. session.view if allowed
     // c. First allowed page (dash if allowed, else allowed[0])
     // d. renderNoAccess()
     const allowed = getRoleNav(activeRole);
-    let hashKey = (typeof window !== "undefined" && window.location && window.location.hash
+    const hashKey = (typeof window !== "undefined" && window.location && window.location.hash
       ? window.location.hash.replace(/^#/, "").trim()
       : "");
 
-    // If URL hash points to removed "users" page, clean hash and route to dash
-    if (hashKey === "users") {
-      hashKey = "";
-      if (typeof window !== "undefined" && window.location) {
-        if (window.history && window.history.replaceState) {
-          window.history.replaceState(null, "", (window.location.pathname || "") + (window.location.search || "") + "#dash");
-        } else {
-          window.location.hash = "dash";
-        }
-      }
-    }
-
-    // If saved session view was the removed "users" page, reset to dash
-    if (session && session.view === "users") {
-      session.view = "dash";
-      try {
-        localStorage.setItem("moto1_session", JSON.stringify(session));
-      } catch (e) {}
-    }
-
     let targetPage = null;
-    if (hashKey && hashKey !== "users" && canOpen(hashKey)) {
-      targetPage = hashKey;
-    } else if (session.view && session.view !== "users" && canOpen(session.view)) {
+    if (hashKey) {
+      if (canOpen(hashKey)) {
+        targetPage = hashKey;
+      } else if (hashKey === "qlabor" && canOpen("pos")) {
+        targetPage = "pos";
+      } else if (allowed.length > 0) {
+        targetPage = allowed.includes("dash") ? "dash" : allowed[0];
+      }
+    } else if (session.view && canOpen(session.view)) {
       targetPage = session.view;
-    } else if ((hashKey === "qlabor" || session.view === "qlabor") && canOpen("pos")) {
+    } else if (session.view === "qlabor" && canOpen("pos")) {
       targetPage = "pos";
     } else if (allowed.length > 0) {
       targetPage = allowed.includes("dash") ? "dash" : allowed[0];
@@ -11422,15 +11907,13 @@ if (typeof window !== "undefined") {
     const u = getCurrentUser();
     if (!u) return;
     const hashKey = (window.location && window.location.hash ? window.location.hash : "").replace(/^#/, "").trim();
-    if (hashKey === "users") {
-      go("dash");
-      return;
-    }
     if (hashKey && hashKey !== view) {
       if (canOpen(hashKey)) {
         go(hashKey);
       } else if (hashKey === "qlabor" && canOpen("pos")) {
         go("pos");
+      } else if (canOpen("dash")) {
+        go("dash");
       }
     }
   });
